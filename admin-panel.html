@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SGK Cloud Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -15,188 +15,175 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; }
-        .tab-btn.active { background: #22d3ee; color: black; font-weight: bold; }
-        input, select, textarea { background: #1e293b; border: 1px solid #334155; padding: 8px; border-radius: 6px; width: 100%; color: white; }
+        body { background: #0f172a; color: white; font-family: sans-serif; overflow-x: hidden; }
+        .tab-btn.active { background: #22d3ee; color: black; font-weight: bold; border-bottom: 3px solid #0891b2; }
+        input, select, textarea { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 8px; width: 100%; color: white; font-size: 16px; /* Prevents iOS zoom on focus */}
         .glass { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
-        input[type="checkbox"] { width: 16px; height: 16px; accent-color: #22d3ee; cursor: pointer; }
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-        .cursor-crosshair { cursor: crosshair; }
-        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+        
+        /* Mobile Map Optimization */
+        #admin-map { height: 400px; width: 100%; border-radius: 12px; z-index: 10; }
+        @media (min-width: 768px) { #admin-map { height: 600px; } }
+        
+        /* Pulse for Editing Mode */
+        .editing-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Touch friendly markers */
+        .leaflet-div-icon { background: transparent !important; border: none !important; }
+        .touch-marker { background: #eab308; border: 2px solid white; border-radius: 50%; width: 24px !important; height: 24px !important; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
     </style>
 </head>
-<body class="p-6">
+<body class="p-2 md:p-6">
 
     <div id="auth-modal" class="fixed inset-0 z-[3000] bg-black flex items-center justify-center p-4">
-        <div class="glass p-8 rounded-xl w-full max-w-sm text-center border border-gray-800 shadow-2xl">
+        <div class="glass p-6 md:p-8 rounded-xl w-full max-w-sm text-center border border-gray-800 shadow-2xl">
             <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-lock text-2xl text-cyan-400"></i>
             </div>
-            <h2 class="text-2xl font-bold mb-2 text-white">Admin Access</h2>
-            <p class="text-gray-400 text-sm mb-6">Login to manage SGK Cloud Data</p>
-            
-            <input type="email" id="admin-email" placeholder="admin@sgk.com" class="mb-4 bg-black/50 border-gray-700 focus:border-cyan-500 outline-none">
-            <input type="password" id="admin-pass" placeholder="Password" class="mb-6 bg-black/50 border-gray-700 focus:border-cyan-500 outline-none">
-            
-            <button onclick="adminLogin()" class="w-full bg-cyan-500 text-black font-bold py-3 rounded hover:bg-cyan-400 transition shadow-[0_0_20px_rgba(6,182,212,0.3)]">
-                LOGIN TO DASHBOARD
-            </button>
+            <h2 class="text-xl md:text-2xl font-bold mb-2 text-white">Admin Access</h2>
+            <input type="email" id="admin-email" placeholder="Email" class="mb-4">
+            <input type="password" id="admin-pass" placeholder="Password" class="mb-6">
+            <button onclick="adminLogin()" class="w-full bg-cyan-500 text-black font-bold py-3 rounded-lg hover:bg-cyan-400 transition">LOGIN</button>
             <p id="login-error" class="text-red-500 text-xs mt-4 font-bold"></p>
         </div>
     </div>
 
     <div id="app-ui" class="max-w-7xl mx-auto hidden">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-cyan-400 flex items-center gap-3">
-                <i class="fas fa-cloud"></i> SGK Cloud Panel
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-cyan-400 flex items-center gap-3">
+                <i class="fas fa-cloud"></i> SGK Admin
             </h1>
             
-            <div class="flex gap-4 items-center">
-                <div id="data-status" class="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 border border-green-500/50 font-bold text-xs flex items-center gap-2">
-                    <i class="fas fa-wifi"></i> CONNECTED
-                </div>
-
-                <button onclick="saveToCloud()" id="save-btn" class="bg-green-500 hover:bg-green-600 text-black font-bold py-3 px-6 rounded-lg shadow-[0_0_20px_rgba(34,197,94,0.5)] transition hover:scale-105 active:scale-95 flex items-center gap-2">
-                    <i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES
+            <div class="flex gap-2 w-full md:w-auto">
+                <button onclick="saveToCloud()" id="save-btn" class="flex-1 md:flex-none bg-green-500 text-black font-bold py-3 px-4 rounded-lg shadow-lg text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> SAVE
                 </button>
-                
-                <button onclick="firebase.auth().signOut()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-3 rounded-lg border border-red-500/30 transition">
+                <button onclick="firebase.auth().signOut()" class="bg-red-500/20 text-red-400 px-4 py-3 rounded-lg border border-red-500/30">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
         </div>
 
-        <div class="flex gap-2 mb-6 border-b border-gray-700 pb-2 overflow-x-auto">
-            <button onclick="switchTab('status')" id="tab-status" class="tab-btn active px-4 py-2 rounded-t-lg transition whitespace-nowrap">📡 Network Status</button>
-            <button onclick="switchTab('plans')" id="tab-plans" class="tab-btn px-4 py-2 rounded-t-lg transition whitespace-nowrap">💰 Plans & Prices</button>
-            <button onclick="switchTab('map')" id="tab-map" class="tab-btn px-4 py-2 rounded-t-lg transition whitespace-nowrap">🗺️ Map & Coverage</button>
-            <button onclick="switchTab('footer')" id="tab-footer" class="tab-btn px-4 py-2 rounded-t-lg transition whitespace-nowrap">📝 Footer & Socials</button>
+        <div class="flex gap-1 mb-6 border-b border-gray-700 overflow-x-auto no-scrollbar pb-1">
+            <button onclick="switchTab('status')" id="tab-status" class="tab-btn active px-4 py-3 text-sm whitespace-nowrap rounded-t-lg transition">📡 Status</button>
+            <button onclick="switchTab('plans')" id="tab-plans" class="tab-btn px-4 py-3 text-sm whitespace-nowrap rounded-t-lg transition">💰 Plans</button>
+            <button onclick="switchTab('map')" id="tab-map" class="tab-btn px-4 py-3 text-sm whitespace-nowrap rounded-t-lg transition">🗺️ Coverage</button>
+            <button onclick="switchTab('footer')" id="tab-footer" class="tab-btn px-4 py-3 text-sm whitespace-nowrap rounded-t-lg transition">📝 Footer</button>
         </div>
 
-        <div id="view-status" class="view-section">
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="glass p-6 rounded-xl">
-                    <h2 class="text-xl font-bold mb-4 text-purple-400">General Settings</h2>
-                    <div class="space-y-4">
-                        <div><label class="text-xs text-gray-400">Company Name</label><input type="text" id="conf-name"></div>
-                        <div><label class="text-xs text-gray-400">Phone Number</label><input type="text" id="conf-phone"></div>
-                        <div><label class="text-xs text-gray-400">UPI ID</label><input type="text" id="conf-upi"></div>
-                        <div><label class="text-xs text-gray-400">Service Cities (Comma Separated)</label><input type="text" id="conf-area" placeholder="e.g. Dombivli, Thane, Kalyan"></div>
+        <div id="view-status" class="view-section animate-fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="glass p-4 md:p-6 rounded-xl">
+                    <h2 class="text-lg font-bold mb-4 text-purple-400 border-b border-purple-500/20 pb-2">Config</h2>
+                    <div class="space-y-3">
+                        <div><label class="text-[10px] text-gray-400 uppercase">Company Name</label><input type="text" id="conf-name"></div>
+                        <div><label class="text-[10px] text-gray-400 uppercase">Phone</label><input type="text" id="conf-phone"></div>
+                        <div><label class="text-[10px] text-gray-400 uppercase">Cities (Comma Separated)</label><input type="text" id="conf-area"></div>
                     </div>
                 </div>
-                <div class="glass p-6 rounded-xl border-l-4 border-l-red-500">
-                    <h2 class="text-xl font-bold mb-4 text-red-400">Emergency Controls</h2>
-                    <div id="zone-list-status" class="space-y-3"></div>
+                <div class="glass p-4 md:p-6 rounded-xl border-l-4 border-red-500">
+                    <h2 class="text-lg font-bold mb-4 text-red-400 border-b border-red-500/20 pb-2">Zone Outages</h2>
+                    <div id="zone-list-status" class="space-y-4 max-h-[400px] overflow-y-auto custom-scroll pr-2"></div>
                 </div>
             </div>
         </div>
 
         <div id="view-plans" class="view-section hidden">
-            <button onclick="addNewPlan()" class="w-full py-4 mb-6 rounded-xl border-2 border-dashed border-cyan-500/30 text-cyan-400 font-bold hover:bg-cyan-500/10 hover:border-cyan-400 transition">
+            <button onclick="addNewPlan()" class="w-full py-4 mb-4 rounded-xl border-2 border-dashed border-cyan-500/30 text-cyan-400 font-bold bg-cyan-500/5 hover:bg-cyan-500/10 transition">
                 <i class="fas fa-plus-circle"></i> ADD NEW PLAN
             </button>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="plans-editor-container"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="plans-editor-container"></div>
         </div>
 
         <div id="view-map" class="view-section hidden">
-            <div class="flex gap-4 h-[600px]">
-                <div class="w-1/4 glass p-4 rounded-xl flex flex-col">
-                    <h3 class="font-bold mb-2">Zone Manager</h3>
-                    <div id="drawing-mode-indicator" class="hidden mb-3 bg-yellow-500/20 border border-yellow-500/50 p-3 rounded text-xs text-yellow-200">
-                        <div class="font-bold flex items-center gap-2 mb-1"><i class="fas fa-pencil-alt"></i> EDITING MODE</div>
-                        <ul class="list-disc pl-4 opacity-80 space-y-1">
-                            <li><strong>Gray Zones:</strong> Existing</li>
-                            <li><strong>Yellow Zone:</strong> Editing</li>
-                            <li><strong>Right-Click</strong> dot to delete</li>
-                        </ul>
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="order-1 md:order-2 flex-1 relative glass rounded-xl overflow-hidden p-1">
+                    <div class="absolute top-2 right-2 z-[1000] flex flex-col gap-2">
+                        <button onclick="toggleMapScroll()" id="map-lock-btn" class="bg-white text-black p-3 rounded-full shadow-xl">
+                            <i class="fas fa-lock"></i>
+                        </button>
                     </div>
-                    <div id="map-zone-list" class="flex-1 overflow-y-auto space-y-2 mb-4 custom-scroll pr-2"></div>
-                    <button id="add-zone-btn" onclick="startNewZone()" class="mt-2 w-full bg-cyan-500 text-black font-bold py-2 rounded hover:bg-cyan-400 shadow-lg">+ Add New Zone</button>
-                    <button id="cancel-draw-btn" onclick="cancelDrawing()" class="hidden mt-2 w-full bg-gray-600 text-white font-bold py-2 rounded hover:bg-gray-500">Cancel</button>
+                    <div id="admin-map"></div>
+                    
+                    <div id="map-controls" class="absolute bottom-4 left-0 right-0 z-[1000] px-4 flex justify-center gap-2">
+                        <button id="finish-poly-btn" onclick="finishPolygon()" class="hidden bg-green-500 text-black font-bold px-6 py-3 rounded-full shadow-2xl flex items-center gap-2">
+                            <i class="fas fa-check"></i> SAVE ZONE
+                        </button>
+                        <button id="cancel-draw-btn" onclick="cancelDrawing()" class="hidden bg-red-500 text-white font-bold px-6 py-3 rounded-full shadow-2xl">
+                            CANCEL
+                        </button>
+                    </div>
                 </div>
-                <div class="w-3/4 relative rounded-xl overflow-hidden border border-gray-700 bg-gray-900 group">
-                    <div id="admin-map" class="h-full w-full bg-gray-900 z-0"></div>
-                    <button id="finish-poly-btn" onclick="finishPolygon()" class="hidden absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-green-500 hover:bg-green-400 text-black font-bold px-8 py-3 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.5)] transition transform hover:scale-105 flex items-center gap-2"><i class="fas fa-check"></i> SAVE ZONE</button>
+
+                <div class="order-2 md:order-1 w-full md:w-1/3 glass p-4 rounded-xl flex flex-col h-[300px] md:h-[600px]">
+                    <h3 class="font-bold mb-3 flex justify-between items-center">
+                        Zones 
+                        <span id="add-zone-prompt" class="text-[10px] text-cyan-400 hidden animate-pulse uppercase">Tap on map to draw</span>
+                    </h3>
+                    <div id="map-zone-list" class="flex-1 overflow-y-auto space-y-2 mb-4 custom-scroll"></div>
+                    <button id="add-zone-btn" onclick="startNewZone()" class="w-full bg-cyan-500 text-black font-bold py-3 rounded-lg shadow-lg">
+                        <i class="fas fa-draw-polygon mr-2"></i>New Zone
+                    </button>
                 </div>
             </div>
         </div>
 
         <div id="view-footer" class="view-section hidden">
-            <div class="glass p-8 rounded-xl max-w-2xl mx-auto">
-                <h2 class="text-2xl font-bold mb-6 text-cyan-400"><i class="fas fa-info-circle"></i> Footer & Contact Details</h2>
-                <div class="space-y-6">
-                    <div><label class="block text-sm text-gray-400 mb-2">About Us Description</label><textarea id="foot-about" rows="3" class="w-full bg-black/20 border border-gray-600 rounded p-3 text-sm"></textarea></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-sm text-gray-400 mb-2">Email</label><input type="text" id="foot-email"></div>
-                        <div><label class="block text-sm text-gray-400 mb-2">Address</label><input type="text" id="foot-address"></div>
-                    </div>
-                    <div class="border-t border-gray-700 pt-6">
-                        <h3 class="text-lg font-bold mb-4 text-pink-400">Social Links</h3>
-                        <p class="text-xs text-gray-500 mb-4">Empty links will be hidden.</p>
-                        <div class="space-y-3">
-                            <div class="flex items-center gap-3"><i class="fab fa-facebook text-blue-500 w-6"></i><input type="text" id="foot-fb" placeholder="Facebook URL"></div>
-                            <div class="flex items-center gap-3"><i class="fab fa-instagram text-pink-500 w-6"></i><input type="text" id="foot-insta" placeholder="Instagram URL"></div>
-                            <div class="flex items-center gap-3"><i class="fab fa-twitter text-blue-400 w-6"></i><input type="text" id="foot-tw" placeholder="Twitter URL"></div>
-                        </div>
-                    </div>
+            <div class="glass p-4 md:p-8 rounded-xl max-w-2xl mx-auto space-y-4">
+                <h2 class="text-xl font-bold text-cyan-400"><i class="fas fa-info-circle"></i> Contact & About</h2>
+                <div><label class="text-xs text-gray-400">About ISP</label><textarea id="foot-about" rows="4"></textarea></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="text-xs text-gray-400">Email</label><input type="text" id="foot-email"></div>
+                    <div><label class="text-xs text-gray-400">Address</label><input type="text" id="foot-address"></div>
+                </div>
+                <div class="space-y-3 pt-4 border-t border-gray-700">
+                    <label class="text-xs text-gray-400">Social Links</label>
+                    <div class="flex items-center gap-3"><i class="fab fa-facebook text-blue-500"></i><input type="text" id="foot-fb"></div>
+                    <div class="flex items-center gap-3"><i class="fab fa-instagram text-pink-500"></i><input type="text" id="foot-insta"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="zone-modal" class="fixed inset-0 bg-black/80 z-[2000] hidden flex items-center justify-center p-4">
+    <div id="zone-modal" class="fixed inset-0 bg-black/90 z-[4000] hidden flex items-center justify-center p-4">
         <div class="glass p-6 rounded-xl w-full max-w-sm">
-            <h3 class="text-xl font-bold mb-4">Create New Zone</h3>
+            <h3 class="text-xl font-bold mb-4 text-cyan-400">Zone Details</h3>
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs text-gray-400 uppercase">Select City</label>
-                    <select id="new-zone-city" class="w-full bg-black/30 border border-cyan-500/50 rounded p-2 text-white"></select>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-400 uppercase">Zone Name</label>
-                    <input type="text" id="new-zone-name" class="w-full bg-black/30 border border-cyan-500/50 rounded p-2 text-white" placeholder="e.g. Cluster 4">
-                </div>
-                <button onclick="confirmZoneCreation()" class="w-full bg-cyan-500 text-black font-bold py-3 rounded hover:bg-cyan-400">SAVE ZONE</button>
-                <button onclick="document.getElementById('zone-modal').classList.add('hidden')" class="w-full bg-gray-600 text-white font-bold py-2 rounded hover:bg-gray-500 mt-2">Cancel</button>
+                <div><label class="text-xs text-gray-400 uppercase">City</label><select id="new-zone-city"></select></div>
+                <div><label class="text-xs text-gray-400 uppercase">Name</label><input type="text" id="new-zone-name" placeholder="Building Name"></div>
+                <button onclick="confirmZoneCreation()" class="w-full bg-green-500 text-black font-bold py-4 rounded-lg">FINISH</button>
+                <button onclick="document.getElementById('zone-modal').classList.add('hidden')" class="w-full text-gray-400 py-2">Back</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ==========================================
-        // 1. FIREBASE CONFIGURATION (REPLACE THESE!)
-        // ==========================================
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAO_1qoKmeXzyhB5YKlg4R3oQ4IRXudvCE",
-  authDomain: "sgk-isp-website.firebaseapp.com",
-  projectId: "sgk-isp-website",
-  storageBucket: "sgk-isp-website.firebasestorage.app",
-  messagingSenderId: "653091870065",
-  appId: "1:653091870065:web:5fc8739eb6d9af029352d0",
-  measurementId: "G-8L5198RZQJ"
-};
+        // CONFIG REMAINS THE SAME
+        const firebaseConfig = {
+          apiKey: "AIzaSyAO_1qoKmeXzyhB5YKlg4R3oQ4IRXudvCE",
+          authDomain: "sgk-isp-website.firebaseapp.com",
+          projectId: "sgk-isp-website",
+          storageBucket: "sgk-isp-website.firebasestorage.app",
+          messagingSenderId: "653091870065",
+          appId: "1:653091870065:web:5fc8739eb6d9af029352d0",
+          measurementId: "G-8L5198RZQJ"
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // ==========================================
-        // 2. GLOBAL VARIABLES
-        // ==========================================
         let data = { config:{}, plans:[], zones:[], footer:{} }; 
         let map, drawLayer;
-        let tempPoints = [], isDrawing = false, editingIndex = null; 
+        let tempPoints = [], isDrawing = false, editingIndex = null;
+        let mapInteractionEnabled = true;
 
-        // ==========================================
-        // 3. AUTHENTICATION LOGIC
-        // ==========================================
         auth.onAuthStateChanged(user => {
             if(user) {
                 document.getElementById('auth-modal').classList.add('hidden');
                 document.getElementById('app-ui').classList.remove('hidden');
-                loadFromCloud(); // Start App
+                loadFromCloud();
             } else {
                 document.getElementById('auth-modal').classList.remove('hidden');
                 document.getElementById('app-ui').classList.add('hidden');
@@ -206,121 +193,70 @@ const firebaseConfig = {
         function adminLogin() {
             const e = document.getElementById('admin-email').value;
             const p = document.getElementById('admin-pass').value;
-            const errEl = document.getElementById('login-error');
-            
-            if(!e || !p) { errEl.innerText = "Please enter email and password"; return; }
-            errEl.innerText = "Authenticating...";
-
             auth.signInWithEmailAndPassword(e, p).catch(err => {
-                errEl.innerText = "Error: " + err.message;
+                document.getElementById('login-error').innerText = err.message;
             });
         }
 
-        // ==========================================
-        // 4. CLOUD SAVE / LOAD
-        // ==========================================
-        // --- UPDATED SAVE FUNCTION (Converts Arrays -> Objects) ---
-async function saveToCloud() {
-    const btn = document.getElementById('save-btn');
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> SAVING...';
-    
-    scrapeDataFromUI(); // Gather latest inputs
-
-    // DEEP COPY & CONVERT COORDINATES FOR FIRESTORE
-    // We create a clean copy so we don't break the current map view
-    let dataToSave = JSON.parse(JSON.stringify(data)); 
-
-    if (dataToSave.zones) {
-        dataToSave.zones = dataToSave.zones.map(zone => {
-            if (Array.isArray(zone.points)) {
-                // Convert [[lat,lng], [lat,lng]] -> [{lat:lat, lng:lng}, ...]
-                zone.points = zone.points.map(p => {
-                    // Check if it's already an array [lat, lng]
-                    if (Array.isArray(p)) return { lat: p[0], lng: p[1] };
-                    return p; // Already an object? Leave it.
-                });
-            }
-            return zone;
-        });
-    }
-
-    try {
-        await db.collection('settings').doc('siteData').set(dataToSave);
-        btn.innerHTML = '<i class="fas fa-check"></i> SAVED!';
-        setTimeout(() => btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES', 2000);
-    } catch (error) {
-        console.error("Firestore Error:", error);
-        alert("Save Failed: " + error.message);
-        btn.innerHTML = 'ERROR';
-    }
-}
-
-// --- UPDATED LOAD FUNCTION (Converts Objects -> Arrays) ---
-async function loadFromCloud() {
-    const btn = document.getElementById('save-btn');
-    btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> LOADING...';
-    
-    try {
-        const doc = await db.collection('settings').doc('siteData').get();
-        if (doc.exists) {
-            data = doc.data();
-            
-            // FIX: Convert Firestore Objects Back to Arrays for Leaflet Map
-            if (data.zones) {
-                data.zones = data.zones.map(zone => {
+        async function saveToCloud() {
+            const btn = document.getElementById('save-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            scrapeDataFromUI();
+            let dataToSave = JSON.parse(JSON.stringify(data)); 
+            if (dataToSave.zones) {
+                dataToSave.zones = dataToSave.zones.map(zone => {
                     if (Array.isArray(zone.points)) {
                         zone.points = zone.points.map(p => {
-                            // If it's an object {lat, lng}, convert to array [lat, lng]
-                            if (p && typeof p === 'object' && !Array.isArray(p)) {
-                                return [p.lat, p.lng];
-                            }
+                            if (Array.isArray(p)) return { lat: p[0], lng: p[1] };
                             return p;
                         });
                     }
                     return zone;
                 });
             }
-
-        } else {
-            console.log("No data found, initializing default structure...");
-            data = { 
-                config: { name: "SGK NET", phone: "", upiId: "", areaName: "" },
-                footer: {}, plans: [], zones: []
-            }; 
+            try {
+                await db.collection('settings').doc('siteData').set(dataToSave);
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => btn.innerHTML = '<i class="fas fa-save"></i> SAVE', 2000);
+            } catch (error) {
+                alert("Save Failed: " + error.message);
+                btn.innerHTML = 'ERROR';
+            }
         }
-        
-        // Auto-Fixes for old data structures
-        if(!data.zones) data.zones = [];
-        if(!data.plans) data.plans = [];
-        data.plans.forEach(p => { 
-            if(!p.linkedZones) p.linkedZones = ["All"]; 
-            if(!p.installation) p.installation = { "1 Month": 1000, "LongTerm": 500 }; 
-        });
 
-        populateUI();
-        initAdminMap();
-        btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES';
-    } catch (error) {
-        alert("Critical Error Loading Data: " + error.message);
-    }
-}
-
+        async function loadFromCloud() {
+            try {
+                const doc = await db.collection('settings').doc('siteData').get();
+                if (doc.exists) {
+                    data = doc.data();
+                    if (data.zones) {
+                        data.zones = data.zones.map(zone => {
+                            if (Array.isArray(zone.points)) {
+                                zone.points = zone.points.map(p => {
+                                    if (p && typeof p === 'object' && !Array.isArray(p)) return [p.lat, p.lng];
+                                    return p;
+                                });
+                            }
+                            return zone;
+                        });
+                    }
+                }
+                populateUI();
+                initAdminMap();
+            } catch (error) { console.error(error); }
+        }
 
         function scrapeDataFromUI() {
             data.config.name = document.getElementById('conf-name').value;
             data.config.phone = document.getElementById('conf-phone').value;
-            data.config.upiId = document.getElementById('conf-upi').value;
             data.config.areaName = document.getElementById('conf-area').value;
             data.config.address = document.getElementById('foot-address').value;
-            data.config.whatsapp = document.getElementById('conf-phone').value;
             data.footer = {
                 about: document.getElementById('foot-about').value,
                 email: document.getElementById('foot-email').value,
                 facebook: document.getElementById('foot-fb').value,
-                instagram: document.getElementById('foot-insta').value,
-                twitter: document.getElementById('foot-tw').value
+                instagram: document.getElementById('foot-insta').value
             };
-            // Clean up empty features in plans
             data.plans.forEach(p => {
                 if(p.features) p.features = p.features.filter(f => f && f.trim() !== '');
             });
@@ -329,239 +265,215 @@ async function loadFromCloud() {
         function populateUI() {
             document.getElementById('conf-name').value = data.config.name || "";
             document.getElementById('conf-phone').value = data.config.phone || "";
-            document.getElementById('conf-upi').value = data.config.upiId || "";
             document.getElementById('conf-area').value = data.config.areaName || "";
-
-            if(!data.footer) data.footer = {};
             document.getElementById('foot-about').value = data.footer.about || "";
             document.getElementById('foot-email').value = data.footer.email || "";
             document.getElementById('foot-address').value = data.config.address || "";
             document.getElementById('foot-fb').value = data.footer.facebook || "";
             document.getElementById('foot-insta').value = data.footer.instagram || "";
-            document.getElementById('foot-tw').value = data.footer.twitter || "";
-
             renderStatusZones();
             renderPlans();
         }
 
-        // ==========================================
-        // 5. UI TABS & STATUS LOGIC
-        // ==========================================
         function switchTab(tab) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
             document.getElementById('view-' + tab).classList.remove('hidden');
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById('tab-' + tab).classList.add('active');
-            if(tab === 'map' && map) setTimeout(() => map.invalidateSize(), 200);
+            if(tab === 'map' && map) setTimeout(() => map.invalidateSize(), 300);
         }
 
         function renderStatusZones() {
             const container = document.getElementById('zone-list-status');
             container.innerHTML = '';
-            const cities = [...new Set(data.zones.map(z => z.city))];
-            
-            cities.forEach(city => {
-                container.innerHTML += `<div class="text-xs font-bold text-gray-500 uppercase mt-4 mb-2 border-b border-gray-700 pb-1">${city || "Unknown City"}</div>`;
-                data.zones.forEach((zone, idx) => {
-                    if(zone.city !== city) return;
-                    const isDown = zone.status === 'down';
-                    container.innerHTML += `
-                        <div class="bg-black/30 p-3 rounded border ${isDown ? 'border-red-500' : 'border-green-500'} mb-2">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="font-bold text-sm">${zone.name}</span>
-                                <select onchange="updateZoneStatus(${idx}, this.value)" class="text-xs w-24 ${isDown?'bg-red-900':'bg-green-900'}">
-                                    <option value="online" ${!isDown?'selected':''}>Online</option>
-                                    <option value="down" ${isDown?'selected':''}>Outage</option>
+            data.zones.forEach((zone, idx) => {
+                const isDown = zone.status === 'down';
+                container.innerHTML += `
+                    <div class="bg-white/5 p-4 rounded-lg border border-white/10">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-bold text-sm">${zone.name}</span>
+                            <select onchange="updateZoneStatus(${idx}, this.value)" class="text-xs w-28 ${isDown?'bg-red-900':'bg-green-900'}">
+                                <option value="online" ${!isDown?'selected':''}>Online</option>
+                                <option value="down" ${isDown?'selected':''}>Outage</option>
+                            </select>
+                        </div>
+                        ${isDown ? `
+                            <input type="text" placeholder="Issue" value="${zone.issue||''}" oninput="data.zones[${idx}].issue=this.value" class="text-xs bg-black/40 mb-2">
+                            <div class="flex gap-2">
+                                <input type="time" id="time-${idx}" onchange="updateZoneEta(${idx})" class="text-xs">
+                                <select id="day-${idx}" onchange="updateZoneEta(${idx})" class="text-xs">
+                                    <option value="Today">Today</option><option value="Tomorrow">Tomorrow</option>
                                 </select>
                             </div>
-                            ${isDown ? `
-                                <div class="space-y-2 mt-2">
-                                    <input type="text" placeholder="Issue" value="${zone.issue||''}" oninput="data.zones[${idx}].issue=this.value" class="text-xs w-full bg-black/20 border border-gray-600 rounded px-2 py-1">
-                                    <div class="flex gap-2">
-                                        <input type="time" id="time-${idx}" class="text-xs bg-black/20 border border-gray-600 rounded w-2/3 text-white" onchange="updateZoneEta(${idx})">
-                                        <select id="day-${idx}" class="text-xs bg-black/20 border border-gray-600 rounded w-1/3 text-white" onchange="updateZoneEta(${idx})">
-                                            <option value="Today">Today</option><option value="Tomorrow">Tomorrow</option>
-                                        </select>
-                                    </div>
-                                    <div class="text-[9px] text-cyan-400 text-right">${zone.eta || ''}</div>
-                                </div>` : ''}
-                        </div>`;
-                });
+                        ` : ''}
+                    </div>`;
             });
         }
+
         function updateZoneStatus(idx, s) { 
             data.zones[idx].status = s; 
             if(s==='down') data.zones[idx].color='#ef4444'; else { data.zones[idx].color='#06b6d4'; data.zones[idx].eta=''; }
             renderStatusZones(); renderMapZones();
         }
+
         function updateZoneEta(idx) {
             const t = document.getElementById(`time-${idx}`).value; 
             const d = document.getElementById(`day-${idx}`).value;
-            if(t) { const [h,m] = t.split(':'); let H=parseInt(h), ap=H>=12?'PM':'AM'; H=H%12||12; data.zones[idx].eta=`${H}:${m} ${ap} ${d}`; }
+            if(t) { data.zones[idx].eta=`${t} ${d}`; }
             renderStatusZones();
         }
 
-        // ==========================================
-        // 6. PLANS EDITOR
-        // ==========================================
         function renderPlans() {
             const container = document.getElementById('plans-editor-container');
             container.innerHTML = '';
             const cities = data.config.areaName ? data.config.areaName.split(',').map(s => s.trim()) : [];
-
             data.plans.forEach((plan, idx) => {
-                if(!plan.features) plan.features = [];
-                if(!plan.installation) plan.installation = { "1 Month": 1000, "LongTerm": 500 };
-
-                let html = `<div class="glass p-4 rounded-xl border border-gray-700 hover:border-cyan-500 relative group">
-                    <button onclick="deletePlan(${idx})" class="absolute top-2 right-2 text-red-500 hover:bg-red-500 hover:text-white w-6 h-6 rounded-full flex items-center justify-center"><i class="fas fa-trash"></i></button>
-                    <input type="text" value="${plan.name}" oninput="data.plans[${idx}].name=this.value" class="font-bold text-lg mb-2 bg-transparent border-b border-gray-700 focus:border-cyan-500 w-full" placeholder="Plan Name">
-                    
-                    <div class="flex gap-2 mb-3">
-                        <input type="text" value="${plan.speed}" oninput="data.plans[${idx}].speed=this.value" class="text-sm bg-black/20 w-20 border-b border-gray-700" placeholder="Speed">
-                        <label class="text-xs flex items-center gap-1"><input type="checkbox" ${plan.highlight?'checked':''} onchange="data.plans[${idx}].highlight=this.checked"> Highlight</label>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-2 text-xs mb-3 bg-black/20 p-2 rounded">
-                        <div>1M: <input type="number" value="${plan.rates['1 Month']}" oninput="data.plans[${idx}].rates['1 Month']=this.value" class="w-12 bg-transparent border-b border-gray-600"></div>
-                        <div>3M: <input type="number" value="${plan.rates['3 Months']}" oninput="data.plans[${idx}].rates['3 Months']=this.value" class="w-12 bg-transparent border-b border-gray-600"></div>
-                        <div>6M: <input type="number" value="${plan.rates['6 Months']}" oninput="data.plans[${idx}].rates['6 Months']=this.value" class="w-12 bg-transparent border-b border-gray-600"></div>
-                        <div>1Y: <input type="number" value="${plan.rates['1 Year']}" oninput="data.plans[${idx}].rates['1 Year']=this.value" class="w-12 bg-transparent border-b border-gray-600"></div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 text-xs mb-3 bg-purple-900/20 p-2 rounded border border-purple-500/30">
-                        <div>Install (1M): <input type="number" value="${plan.installation['1 Month']}" oninput="data.plans[${idx}].installation['1 Month']=this.value" class="w-12 bg-transparent border-b border-purple-400"></div>
-                        <div>Install (Long): <input type="number" value="${plan.installation['LongTerm']}" oninput="data.plans[${idx}].installation['LongTerm']=this.value" class="w-12 bg-transparent border-b border-purple-400"></div>
-                    </div>
-
-                    <div class="mb-3">
-                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Features (Max 3)</p>
-                        <div class="space-y-1">
-                            <input type="text" value="${plan.features[0]||''}" oninput="updateFeature(${idx}, 0, this.value)" class="text-xs bg-black/20 w-full border-b border-gray-700 p-1" placeholder="Feature 1">
-                            <input type="text" value="${plan.features[1]||''}" oninput="updateFeature(${idx}, 1, this.value)" class="text-xs bg-black/20 w-full border-b border-gray-700 p-1" placeholder="Feature 2">
-                            <input type="text" value="${plan.features[2]||''}" oninput="updateFeature(${idx}, 2, this.value)" class="text-xs bg-black/20 w-full border-b border-gray-700 p-1" placeholder="Feature 3">
+                container.innerHTML += `
+                    <div class="glass p-4 rounded-xl border border-white/10">
+                        <div class="flex justify-between mb-2">
+                             <input type="text" value="${plan.name}" oninput="data.plans[${idx}].name=this.value" class="font-bold text-cyan-400 bg-transparent border-b border-white/10 w-3/4">
+                             <button onclick="deletePlan(${idx})" class="text-red-500"><i class="fas fa-trash"></i></button>
                         </div>
-                    </div>
-
-                    <div class="h-32 overflow-y-auto custom-scroll bg-black/20 p-2 rounded border border-gray-700">
-                        <div class="mb-2">
-                            <label class="flex items-center gap-2 text-xs font-bold text-cyan-400 bg-cyan-900/20 p-1 rounded mb-1">
-                                <input type="checkbox" ${plan.linkedZones.includes("All")?'checked':''} onchange="togglePlanZone(${idx}, 'All')"> ALL CITIES (GLOBAL)
-                            </label>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <input type="text" value="${plan.speed}" oninput="data.plans[${idx}].speed=this.value" class="text-xs" placeholder="Speed">
+                            <label class="text-[10px] flex items-center gap-1"><input type="checkbox" ${plan.highlight?'checked':''} onchange="data.plans[${idx}].highlight=this.checked"> Star</label>
                         </div>
-                        ${cities.map(city => {
-                            const cityZones = data.zones.filter(z => z.city === city);
-                            let zoneList = cityZones.map(z => 
-                                `<label class="flex items-center gap-2 text-xs pl-4 py-0.5 text-gray-400 hover:text-white">
-                                    <input type="checkbox" ${plan.linkedZones.includes(z.name)?'checked':''} onchange="togglePlanZone(${idx}, '${z.name}')"> 🏠 ${z.name}
-                                </label>`
-                            ).join('');
-                            return `
-                                <div class="mb-2">
-                                    <label class="flex items-center gap-2 text-xs font-bold text-white bg-gray-800 p-1 rounded">
-                                        <input type="checkbox" ${plan.linkedZones.includes(city)?'checked':''} onchange="togglePlanZone(${idx}, '${city}')"> 📍 ${city} (Entire City)
-                                    </label>
-                                    ${zoneList}
-                                </div>`;
-                        }).join('')}
-                    </div>
-                </div>`;
-                container.innerHTML += html;
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+                            <div class="bg-black/20 p-1 rounded">1M: <input type="number" value="${plan.rates['1 Month']}" oninput="data.plans[${idx}].rates['1 Month']=this.value" class="w-12 bg-transparent"></div>
+                            <div class="bg-black/20 p-1 rounded">1Y: <input type="number" value="${plan.rates['1 Year']}" oninput="data.plans[${idx}].rates['1 Year']=this.value" class="w-12 bg-transparent"></div>
+                        </div>
+                        <div class="h-24 overflow-y-auto custom-scroll bg-black/20 p-2 rounded text-[10px]">
+                            <label class="flex items-center gap-1 text-cyan-400 mb-1"><input type="checkbox" ${plan.linkedZones.includes("All")?'checked':''} onchange="togglePlanZone(${idx}, 'All')"> GLOBAL</label>
+                            ${cities.map(c => `<label class="flex items-center gap-1"><input type="checkbox" ${plan.linkedZones.includes(c)?'checked':''} onchange="togglePlanZone(${idx}, '${c}')"> ${c}</label>`).join('')}
+                        </div>
+                    </div>`;
             });
         }
+
         function togglePlanZone(idx, val) { 
             let z = data.plans[idx].linkedZones; 
             z.includes(val) ? z=z.filter(x=>x!==val) : z.push(val); 
             data.plans[idx].linkedZones=z; renderPlans(); 
         }
-        function updateFeature(planIdx, featureIdx, val) {
-            if(!data.plans[planIdx].features) data.plans[planIdx].features = [];
-            data.plans[planIdx].features[featureIdx] = val;
-        }
+
         function addNewPlan() { 
-            data.plans.push({ id:Date.now(), name:"NEW PLAN", speed:"50 Mbps", highlight:false, linkedZones:["All"], rates:{"1 Month":500,"3 Months":1500,"6 Months":3000,"1 Year":6000}, installation:{"1 Month":1000,"LongTerm":500}, features:["", "", ""] }); 
+            data.plans.push({ id:Date.now(), name:"New Plan", speed:"50 Mbps", highlight:false, linkedZones:["All"], rates:{"1 Month":500,"3 Months":1500,"6 Months":3000,"1 Year":6000}, installation:{"1 Month":1000,"LongTerm":500}, features:["", "", ""] }); 
             renderPlans(); 
         }
-        function deletePlan(idx) { if(confirm("Delete this plan?")) { data.plans.splice(idx,1); renderPlans(); } }
 
-        // ==========================================
-        // 7. MAP & DRAWING LOGIC
-        // ==========================================
+        function deletePlan(idx) { if(confirm("Delete?")) { data.plans.splice(idx,1); renderPlans(); } }
+
+        // MAP FUNCTIONS
         function initAdminMap() {
             if(map) map.remove();
-            // Default center if no zones exist
-            const startCoords = (data.zones.length > 0 && data.zones[0].points.length > 0) ? data.zones[0].points[0] : [19.2183, 73.0878];
-            map = L.map('admin-map').setView(startCoords, 14);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+            const startCoords = (data.zones.length > 0) ? data.zones[0].points[0] : [19.2183, 73.0878];
+            map = L.map('admin-map', { dragging: true, touchZoom: true, scrollWheelZoom: false }).setView(startCoords, 14);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
             drawLayer = L.layerGroup().addTo(map);
             renderMapZones();
             map.on('click', e => { if(isDrawing){ tempPoints.push([e.latlng.lat, e.latlng.lng]); renderEditor(); } });
+            toggleMapScroll(); // Start locked
         }
+
+        function toggleMapScroll() {
+            mapInteractionEnabled = !mapInteractionEnabled;
+            const btn = document.getElementById('map-lock-btn');
+            if(mapInteractionEnabled) {
+                map.dragging.enable();
+                map.touchZoom.enable();
+                btn.innerHTML = '<i class="fas fa-unlock"></i>';
+                btn.classList.add('bg-cyan-500');
+            } else {
+                map.dragging.disable();
+                map.touchZoom.disable();
+                btn.innerHTML = '<i class="fas fa-lock"></i>';
+                btn.classList.remove('bg-cyan-500');
+            }
+        }
+
         function renderMapZones() {
-            if(isDrawing) return; drawLayer.clearLayers(); document.getElementById('map-zone-list').innerHTML = '';
+            if(isDrawing) return; drawLayer.clearLayers(); 
+            const list = document.getElementById('map-zone-list');
+            list.innerHTML = '';
             data.zones.forEach((z, i) => {
                 const c = z.status==='down'?'#ef4444':'#06b6d4';
-                L.polygon(z.points, {color:c, fillColor:c, fillOpacity:0.2}).addTo(drawLayer).bindTooltip(z.name, {permanent:true, direction:"center", className:"bg-transparent border-none text-white font-bold shadow-none"});
-                document.getElementById('map-zone-list').innerHTML += `
-                    <div class="bg-gray-800 p-2 rounded flex justify-between text-xs mb-1 border border-gray-700">
-                        <div><span class="font-bold text-white">${z.name}</span> <span class="text-gray-500">(${z.city || 'No City'})</span></div>
-                        <div class="flex gap-2"><button onclick="editZone(${i})" class="text-yellow-500"><i class="fas fa-pencil-alt"></i></button><button onclick="deleteZone(${i})" class="text-red-500"><i class="fas fa-trash"></i></button></div>
+                L.polygon(z.points, {color:c, weight:2, fillOpacity:0.3}).addTo(drawLayer);
+                list.innerHTML += `
+                    <div class="flex justify-between items-center bg-white/5 p-3 rounded-lg border border-white/10">
+                        <span class="text-xs truncate w-24">${z.name}</span>
+                        <div class="flex gap-2">
+                            <button onclick="editZone(${i})" class="bg-yellow-500/20 text-yellow-500 p-2 rounded"><i class="fas fa-edit"></i></button>
+                            <button onclick="deleteZone(${i})" class="bg-red-500/20 text-red-500 p-2 rounded"><i class="fas fa-trash"></i></button>
+                        </div>
                     </div>`;
             });
         }
+
         function startNewZone() { 
             isDrawing=true; editingIndex=null; tempPoints=[]; 
-            document.getElementById('finish-poly-btn').classList.remove('hidden'); 
-            toggleDrawingUI(true); renderEditor(); 
-        }
-        function editZone(idx) { 
-            isDrawing=true; editingIndex=idx; tempPoints=JSON.parse(JSON.stringify(data.zones[idx].points)); 
-            if(tempPoints.length>0) map.flyTo(tempPoints[0], 16); 
-            document.getElementById('finish-poly-btn').innerHTML = '<i class="fas fa-save"></i> UPDATE'; 
+            document.getElementById('add-zone-btn').classList.add('hidden');
             document.getElementById('finish-poly-btn').classList.remove('hidden');
-            toggleDrawingUI(true); renderEditor(); 
+            document.getElementById('cancel-draw-btn').classList.remove('hidden');
+            document.getElementById('add-zone-prompt').classList.remove('hidden');
+            if(!mapInteractionEnabled) toggleMapScroll();
+            renderEditor(); 
         }
+
+        function editZone(idx) { 
+            isDrawing=true; editingIndex=idx; tempPoints=[...data.zones[idx].points]; 
+            map.flyTo(tempPoints[0], 16); 
+            document.getElementById('add-zone-btn').classList.add('hidden');
+            document.getElementById('finish-poly-btn').classList.remove('hidden');
+            document.getElementById('cancel-draw-btn').classList.remove('hidden');
+            if(!mapInteractionEnabled) toggleMapScroll();
+            renderEditor(); 
+        }
+
         function renderEditor() {
             drawLayer.clearLayers();
-            data.zones.forEach((z, i) => { if(i!==editingIndex) L.polygon(z.points, {color:'#334155', fillOpacity:0.1, weight:1, dashArray:'5,5'}).addTo(drawLayer); });
-            if(tempPoints.length>0) L.polygon(tempPoints, {color:'#eab308', weight:3}).addTo(drawLayer);
+            if(tempPoints.length>0) L.polygon(tempPoints, {color:'#eab308', weight:3, className: 'editing-pulse'}).addTo(drawLayer);
             tempPoints.forEach((p,i) => { 
-                L.marker(p, {draggable:true, icon:L.divIcon({className:'bg-yellow-500 rounded-full border-2 border-white', iconSize:[12,12]})})
-                .addTo(drawLayer).on('drag', e=>{ tempPoints[i]=[e.latlng.lat, e.latlng.lng]; }).on('dragend', ()=>renderEditor()).on('contextmenu', ()=>{ tempPoints.splice(i,1); renderEditor(); }); 
+                L.marker(p, {
+                    draggable:true, 
+                    icon:L.divIcon({className:'touch-marker'})
+                })
+                .addTo(drawLayer)
+                .on('drag', e=>{ tempPoints[i]=[e.latlng.lat, e.latlng.lng]; })
+                .on('contextmenu', ()=>{ tempPoints.splice(i,1); renderEditor(); }); 
             });
         }
-        function toggleDrawingUI(active) {
-            document.getElementById('drawing-mode-indicator').classList.toggle('hidden', !active);
-            document.getElementById('add-zone-btn').classList.toggle('hidden', active);
-            document.getElementById('cancel-draw-btn').classList.toggle('hidden', !active);
+
+        function cancelDrawing() { 
+            isDrawing=false; 
+            document.getElementById('add-zone-btn').classList.remove('hidden');
+            document.getElementById('finish-poly-btn').classList.add('hidden');
+            document.getElementById('cancel-draw-btn').classList.add('hidden');
+            document.getElementById('add-zone-prompt').classList.add('hidden');
+            renderMapZones(); 
         }
-        function cancelDrawing() { isDrawing=false; editingIndex=null; tempPoints=[]; document.getElementById('finish-poly-btn').classList.add('hidden'); toggleDrawingUI(false); renderMapZones(); }
         
         function finishPolygon() {
-            if(tempPoints.length<3) return alert("Min 3 points!");
+            if(tempPoints.length<3) return alert("Add 3 points");
             if(editingIndex!==null) {
                 data.zones[editingIndex].points = tempPoints;
                 cancelDrawing(); renderPlans(); renderStatusZones();
             } else {
                 const select = document.getElementById('new-zone-city');
-                select.innerHTML = '';
-                const cities = document.getElementById('conf-area').value.split(',');
-                cities.forEach(c => {
-                    const opt = document.createElement('option'); opt.value=c.trim(); opt.innerText=c.trim(); select.appendChild(opt);
-                });
+                select.innerHTML = (data.config.areaName||"").split(',').map(c => `<option value="${c.trim()}">${c.trim()}</option>`).join('');
                 document.getElementById('zone-modal').classList.remove('hidden');
             }
         }
+
         function confirmZoneCreation() {
             const name = document.getElementById('new-zone-name').value;
             const city = document.getElementById('new-zone-city').value;
-            if(!name) return alert("Enter Name");
+            if(!name) return alert("Name missing");
             data.zones.push({ name: name, city: city, status: 'online', color: '#06b6d4', points: tempPoints });
             document.getElementById('zone-modal').classList.add('hidden');
-            document.getElementById('new-zone-name').value = '';
             cancelDrawing(); renderPlans(); renderStatusZones();
         }
-        function deleteZone(idx) { if(confirm("Delete zone?")) { data.zones.splice(idx,1); renderMapZones(); renderPlans(); renderStatusZones(); } }
+
+        function deleteZone(idx) { if(confirm("Delete?")) { data.zones.splice(idx,1); renderMapZones(); } }
     </script>
 </body>
 </html>

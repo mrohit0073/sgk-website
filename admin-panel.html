@@ -219,53 +219,92 @@ const firebaseConfig = {
         // ==========================================
         // 4. CLOUD SAVE / LOAD
         // ==========================================
-        async function loadFromCloud() {
-            const btn = document.getElementById('save-btn');
-            btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> LOADING...';
-            
-            try {
-                const doc = await db.collection('settings').doc('siteData').get();
-                if (doc.exists) {
-                    data = doc.data();
-                } else {
-                    console.log("No data found, initializing default structure...");
-                    data = { 
-                        config: { name: "SGK NET", phone: "", upiId: "", areaName: "" },
-                        footer: {}, plans: [], zones: []
-                    }; 
-                }
-                
-                // Auto-Fixes for old data structures
-                if(!data.zones) data.zones = [];
-                if(!data.plans) data.plans = [];
-                data.plans.forEach(p => { 
-                    if(!p.linkedZones) p.linkedZones = ["All"]; 
-                    if(!p.installation) p.installation = { "1 Month": 1000, "LongTerm": 500 }; 
+        // --- UPDATED SAVE FUNCTION (Converts Arrays -> Objects) ---
+async function saveToCloud() {
+    const btn = document.getElementById('save-btn');
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> SAVING...';
+    
+    scrapeDataFromUI(); // Gather latest inputs
+
+    // DEEP COPY & CONVERT COORDINATES FOR FIRESTORE
+    // We create a clean copy so we don't break the current map view
+    let dataToSave = JSON.parse(JSON.stringify(data)); 
+
+    if (dataToSave.zones) {
+        dataToSave.zones = dataToSave.zones.map(zone => {
+            if (Array.isArray(zone.points)) {
+                // Convert [[lat,lng], [lat,lng]] -> [{lat:lat, lng:lng}, ...]
+                zone.points = zone.points.map(p => {
+                    // Check if it's already an array [lat, lng]
+                    if (Array.isArray(p)) return { lat: p[0], lng: p[1] };
+                    return p; // Already an object? Leave it.
                 });
-
-                populateUI();
-                initAdminMap();
-                btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES';
-            } catch (error) {
-                alert("Critical Error Loading Data: " + error.message);
             }
-        }
+            return zone;
+        });
+    }
 
-        async function saveToCloud() {
-            const btn = document.getElementById('save-btn');
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> SAVING...';
+    try {
+        await db.collection('settings').doc('siteData').set(dataToSave);
+        btn.innerHTML = '<i class="fas fa-check"></i> SAVED!';
+        setTimeout(() => btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES', 2000);
+    } catch (error) {
+        console.error("Firestore Error:", error);
+        alert("Save Failed: " + error.message);
+        btn.innerHTML = 'ERROR';
+    }
+}
+
+// --- UPDATED LOAD FUNCTION (Converts Objects -> Arrays) ---
+async function loadFromCloud() {
+    const btn = document.getElementById('save-btn');
+    btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> LOADING...';
+    
+    try {
+        const doc = await db.collection('settings').doc('siteData').get();
+        if (doc.exists) {
+            data = doc.data();
             
-            scrapeDataFromUI(); // Gather latest inputs
-
-            try {
-                await db.collection('settings').doc('siteData').set(data);
-                btn.innerHTML = '<i class="fas fa-check"></i> SAVED!';
-                setTimeout(() => btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES', 2000);
-            } catch (error) {
-                alert("Save Failed: " + error.message);
-                btn.innerHTML = 'ERROR';
+            // FIX: Convert Firestore Objects Back to Arrays for Leaflet Map
+            if (data.zones) {
+                data.zones = data.zones.map(zone => {
+                    if (Array.isArray(zone.points)) {
+                        zone.points = zone.points.map(p => {
+                            // If it's an object {lat, lng}, convert to array [lat, lng]
+                            if (p && typeof p === 'object' && !Array.isArray(p)) {
+                                return [p.lat, p.lng];
+                            }
+                            return p;
+                        });
+                    }
+                    return zone;
+                });
             }
+
+        } else {
+            console.log("No data found, initializing default structure...");
+            data = { 
+                config: { name: "SGK NET", phone: "", upiId: "", areaName: "" },
+                footer: {}, plans: [], zones: []
+            }; 
         }
+        
+        // Auto-Fixes for old data structures
+        if(!data.zones) data.zones = [];
+        if(!data.plans) data.plans = [];
+        data.plans.forEach(p => { 
+            if(!p.linkedZones) p.linkedZones = ["All"]; 
+            if(!p.installation) p.installation = { "1 Month": 1000, "LongTerm": 500 }; 
+        });
+
+        populateUI();
+        initAdminMap();
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> SAVE CHANGES';
+    } catch (error) {
+        alert("Critical Error Loading Data: " + error.message);
+    }
+}
+
 
         function scrapeDataFromUI() {
             data.config.name = document.getElementById('conf-name').value;

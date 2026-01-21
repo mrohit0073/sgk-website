@@ -7,6 +7,25 @@ let currentSelectedPlan = null;
 // This function is called by index.html once Firestore data is retrieved
 window.startApp = function(cloudData) {
     
+    // --- CRITICAL FIX: CONVERT ZONES FOR FRONTEND ---
+    // Firestore stores points as objects {lat:x, lng:y} to avoid errors.
+    // Leaflet needs arrays [lat, lng]. We convert them back here.
+    if (cloudData.zones) {
+        cloudData.zones = cloudData.zones.map(zone => {
+            if (Array.isArray(zone.points)) {
+                zone.points = zone.points.map(p => {
+                    // Check if it's an object {lat, lng} and convert to [lat, lng]
+                    if (p && typeof p === 'object' && !Array.isArray(p)) {
+                        return [p.lat, p.lng];
+                    }
+                    return p;
+                });
+            }
+            return zone;
+        });
+    }
+    // --- END FIX ---
+
     // Assign Cloud Data to Global Context
     window.ISP_DATA = cloudData; 
     

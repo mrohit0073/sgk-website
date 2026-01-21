@@ -1,310 +1,343 @@
-
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SGK Enterprises | Next-Gen Fiber</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGK Enterprises | Next-Gen Fiber</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="styles.css">
 
-    <script src="admin-data.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="antialiased selection:bg-cyan-500 selection:text-black">
 
-    <div class="fixed w-full z-50 top-4 px-2 md:px-6">
-        <nav class="max-w-7xl mx-auto glass-panel rounded-full px-4 md:px-6 py-3 flex justify-between items-center relative overflow-hidden">
-            <div class="absolute left-10 top-1/2 -translate-y-1/2 w-20 h-20 bg-blue-500 blur-[50px] opacity-40"></div>
-            
-            <div class="text-xl md:text-2xl font-black tracking-tighter flex items-center gap-2 md:gap-3 relative z-10">
-                <div class="w-8 h-8 rounded bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_15px_cyan]">
-                    <i class="fas fa-bolt text-white text-sm"></i>
-                </div>
-                <span class="bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400" id="nav-brand-name">SGK NET</span>
-            </div>
-            
-            <div class="hidden md:flex gap-8 font-semibold text-sm tracking-wide text-gray-400">
-                <a href="#plans" class="hover:text-cyan-400 transition-colors duration-300">PLANS</a>
-                <a href="#coverage" class="hover:text-cyan-400 transition-colors duration-300">COVERAGE</a>
-                <a href="#payment" class="hover:text-cyan-400 transition-colors duration-300">PAYMENT</a>
-            </div>
+    <div id="site-loader" class="fixed inset-0 bg-[#050b14] z-[9999] flex flex-col items-center justify-center gap-4 transition-opacity duration-500">
+        <div class="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+        <div class="text-cyan-400 font-bold tracking-widest animate-pulse">CONNECTING TO CLOUD...</div>
+        <div id="error-msg" class="text-red-500 text-xs hidden"></div>
+    </div>
 
-            <div class="flex items-center gap-2 md:gap-3 relative z-10">
-                <a href="https://crm.sgknet.com" target="_blank" class="flex items-center gap-2 text-xs font-bold text-cyan-400 hover:text-white border border-cyan-500/30 hover:border-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2 md:px-5 md:py-2.5 rounded-full transition-all duration-300 group">
-                    <i class="fas fa-user-circle text-lg group-hover:scale-110 transition-transform"></i>
-                    <span class="hidden md:inline">LOGIN</span>
-                </a>
-                <a id="nav-phone" href="#" class="group overflow-hidden bg-white text-black px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold text-sm transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]">
-                    <span class="relative z-10 flex items-center gap-2">
-                        <i class="fas fa-phone-alt animate-pulse"></i> 
-                        <span class="hidden lg:inline">CALL NOW</span>
-                    </span>
-                </a>
-            </div>
-        </nav>
-    </div>
+    <div class="fixed w-full z-50 top-4 px-2 md:px-6">
+        <nav class="max-w-7xl mx-auto glass-panel rounded-full px-4 md:px-6 py-3 flex justify-between items-center relative overflow-hidden">
+            <div class="absolute left-10 top-1/2 -translate-y-1/2 w-20 h-20 bg-blue-500 blur-[50px] opacity-40"></div>
+            
+            <div class="text-xl md:text-2xl font-black tracking-tighter flex items-center gap-2 md:gap-3 relative z-10">
+                <div class="w-8 h-8 rounded bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_15px_cyan]">
+                    <i class="fas fa-bolt text-white text-sm"></i>
+                </div>
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400" id="nav-brand-name">SGK NET</span>
+            </div>
+            
+            <div class="hidden md:flex gap-8 font-semibold text-sm tracking-wide text-gray-400">
+                <a href="#plans" class="hover:text-cyan-400 transition-colors duration-300">PLANS</a>
+                <a href="#coverage" class="hover:text-cyan-400 transition-colors duration-300">COVERAGE</a>
+                <a href="#payment" class="hover:text-cyan-400 transition-colors duration-300">PAYMENT</a>
+            </div>
 
-    <section class="min-h-screen flex items-center justify-center relative overflow-hidden pt-28 pb-20">
-        <div class="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-600/20 rounded-full blur-[100px] mix-blend-screen"></div>
+            <div class="flex items-center gap-2 md:gap-3 relative z-10">
+                <a href="https://crm.sgknet.com" target="_blank" class="flex items-center gap-2 text-xs font-bold text-cyan-400 hover:text-white border border-cyan-500/30 hover:border-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 px-3 py-2 md:px-5 md:py-2.5 rounded-full transition-all duration-300 group">
+                    <i class="fas fa-user-circle text-lg group-hover:scale-110 transition-transform"></i>
+                    <span class="hidden md:inline">LOGIN</span>
+                </a>
+                <a id="nav-phone" href="#" class="group overflow-hidden bg-white text-black px-4 md:px-6 py-2 md:py-2.5 rounded-full font-bold text-sm transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                    <span class="relative z-10 flex items-center gap-2">
+                        <i class="fas fa-phone-alt animate-pulse"></i> 
+                        <span class="hidden lg:inline">CALL NOW</span>
+                    </span>
+                </a>
+            </div>
+        </nav>
+    </div>
 
-        <div class="max-w-7xl mx-auto px-4 w-full grid md:grid-cols-2 gap-16 items-center relative z-10">
-            <div class="text-left space-y-6">
-                
-                <div>
-                    <div id="global-status-container" class="inline-flex items-center gap-3 glass-panel px-4 py-2 rounded-full border border-white/10 transition-all duration-500 cursor-pointer hover:border-white/30">
-                        <div class="animate-pulse w-2 h-2 bg-gray-500 rounded-full"></div>
-                        <span class="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Checking Network...</span>
-                    </div>
-                </div>
-                
-                <h1 class="text-5xl md:text-8xl font-black leading-[0.9] tracking-tight">
-                    SPEED <br>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 neon-text">REDEFINED</span>
-                </h1>
-                
-                <p class="text-xl text-gray-400 max-w-lg leading-relaxed border-l-2 border-cyan-500/50 pl-6">
-                    Experience low-latency fiber optics designed for gaming, 4K streaming, and seamless work from home.
-                </p>
+    <section class="min-h-screen flex items-center justify-center relative overflow-hidden pt-28 pb-20">
+        <div class="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px] mix-blend-screen animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-600/20 rounded-full blur-[100px] mix-blend-screen"></div>
 
-                <div class="flex flex-wrap gap-4 pt-2">
-                    <a href="#plans" class="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-[0_0_40px_rgba(6,182,212,0.4)] transition transform hover:-translate-y-1 flex items-center gap-3">
-                        VIEW PLANS <i class="fas fa-arrow-right"></i>
-                    </a>
-                    <a id="hero-whatsapp" href="#" target="_blank" class="glass-panel text-green-400 px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-500/10 border border-green-500/30 transition flex items-center gap-3">
-                        <i class="fab fa-whatsapp text-2xl"></i> Chat Now
-                    </a>
-                </div>
+        <div class="max-w-7xl mx-auto px-4 w-full grid md:grid-cols-2 gap-16 items-center relative z-10">
+            <div class="text-left space-y-6">
+                <div>
+                    <div id="global-status-container" class="inline-flex items-center gap-3 glass-panel px-4 py-2 rounded-full border border-white/10 transition-all duration-500 cursor-pointer hover:border-white/30">
+                        <div class="animate-pulse w-2 h-2 bg-gray-500 rounded-full"></div>
+                        <span class="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Checking Network...</span>
+                    </div>
+                </div>
+                
+                <h1 class="text-5xl md:text-8xl font-black leading-[0.9] tracking-tight">
+                    SPEED <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 neon-text">REDEFINED</span>
+                </h1>
+                
+                <p class="text-xl text-gray-400 max-w-lg leading-relaxed border-l-2 border-cyan-500/50 pl-6">
+                    Experience low-latency fiber optics designed for gaming, 4K streaming, and seamless work from home.
+                </p>
 
-                <div class="pt-8 border-t border-white/5 mt-4">
-                    <p id="city-availability-header" class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                        AVAILABLE AREAS
-                    </p>
-                    <div id="location-badge-container" class="flex flex-wrap gap-2">
-                        </div>
-                </div>
+                <div class="flex flex-wrap gap-4 pt-2">
+                    <a href="#plans" class="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-[0_0_40px_rgba(6,182,212,0.4)] transition transform hover:-translate-y-1 flex items-center gap-3">
+                        VIEW PLANS <i class="fas fa-arrow-right"></i>
+                    </a>
+                    <a id="hero-whatsapp" href="#" target="_blank" class="glass-panel text-green-400 px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-500/10 border border-green-500/30 transition flex items-center gap-3">
+                        <i class="fab fa-whatsapp text-2xl"></i> Chat Now
+                    </a>
+                </div>
 
-            </div>
+                <div class="pt-8 border-t border-white/5 mt-4">
+                    <p id="city-availability-header" class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                        AVAILABLE AREAS
+                    </p>
+                    <div id="location-badge-container" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
 
-            <div class="relative h-[500px] w-full flex items-center justify-center perspective-container hidden md:flex">
-                <div class="relative w-80 h-80 glass-panel rounded-[2rem] transform rotate-[-12deg] hover:rotate-0 transition duration-700 floating flex flex-col items-center justify-center shadow-[0_0_100px_rgba(0,243,255,0.1)] border border-white/20">
-                    <div class="w-48 h-24 overflow-hidden relative mb-4">
-                        <div class="w-48 h-48 rounded-full border-[12px] border-gray-700 border-t-cyan-400 border-r-cyan-400 transform rotate-[-45deg]"></div>
-                    </div>
-                    <div class="text-6xl font-black text-white tracking-tighter">1<span class="text-cyan-400 text-4xl">Gbps</span></div>
-                    <div class="text-gray-400 text-sm font-bold uppercase tracking-widest mt-2">Ready Network</div>
-                </div>
-            </div>
-        </div>
-    </section>
+            <div class="relative h-[500px] w-full flex items-center justify-center perspective-container hidden md:flex">
+                <div class="relative w-80 h-80 glass-panel rounded-[2rem] transform rotate-[-12deg] hover:rotate-0 transition duration-700 floating flex flex-col items-center justify-center shadow-[0_0_100px_rgba(0,243,255,0.1)] border border-white/20">
+                    <div class="w-48 h-24 overflow-hidden relative mb-4">
+                        <div class="w-48 h-48 rounded-full border-[12px] border-gray-700 border-t-cyan-400 border-r-cyan-400 transform rotate-[-45deg]"></div>
+                    </div>
+                    <div class="text-6xl font-black text-white tracking-tighter">1<span class="text-cyan-400 text-4xl">Gbps</span></div>
+                    <div class="text-gray-400 text-sm font-bold uppercase tracking-widest mt-2">Ready Network</div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<section id="plans" class="py-32 relative">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="text-center mb-16 relative">
-                <h2 class="text-4xl md:text-5xl font-black mb-8">CHOOSE YOUR <span class="text-cyan-400">POWER</span></h2>
-                
-                <div class="inline-flex flex-col md:flex-row items-center gap-6 md:gap-4 bg-[#0f172a] border border-cyan-500/30 rounded-3xl p-6 md:p-2 md:pr-6 shadow-[0_0_30px_rgba(0,243,255,0.15)] relative z-20 w-full md:w-auto">
-                    
-                    <div class="relative group w-full md:w-auto border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-2">
-                        <div class="absolute -top-5 md:-top-3 left-1/2 -translate-x-1/2 bg-[#0f172a] px-2 text-xs md:text-[10px] text-purple-400 font-bold uppercase tracking-widest z-20 w-max">
-                            Select Area
-                        </div>
-                        <div class="relative">
-                            <select id="zone-selector" onchange="filterPlansByZone()" class="bg-transparent text-white text-2xl md:text-xl font-black outline-none cursor-pointer py-3 px-8 w-full md:min-w-[200px] z-10 relative text-center appearance-none">
-                                <option value="All">All Locations</option>
-                            </select>
-                            <i class="fas fa-map-marker-alt absolute left-4 md:right-2 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none text-xl md:text-base"></i>
-                            <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none md:hidden"></i>
-                        </div>
-                    </div>
+    <section id="plans" class="py-32 relative">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="text-center mb-16 relative">
+                <h2 class="text-4xl md:text-5xl font-black mb-8">CHOOSE YOUR <span class="text-cyan-400">POWER</span></h2>
+                
+                <div class="inline-flex flex-col md:flex-row items-center gap-6 md:gap-4 bg-[#0f172a] border border-cyan-500/30 rounded-3xl p-6 md:p-2 md:pr-6 shadow-[0_0_30px_rgba(0,243,255,0.15)] relative z-20 w-full md:w-auto">
+                    
+                    <div class="relative group w-full md:w-auto border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-2">
+                        <div class="absolute -top-5 md:-top-3 left-1/2 -translate-x-1/2 bg-[#0f172a] px-2 text-xs md:text-[10px] text-purple-400 font-bold uppercase tracking-widest z-20 w-max">
+                            Select Area
+                        </div>
+                        <div class="relative">
+                            <select id="zone-selector" onchange="filterPlansByZone()" class="bg-transparent text-white text-2xl md:text-xl font-black outline-none cursor-pointer py-3 px-8 w-full md:min-w-[200px] z-10 relative text-center appearance-none">
+                                <option value="All">All Locations</option>
+                            </select>
+                            <i class="fas fa-map-marker-alt absolute left-4 md:right-2 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none text-xl md:text-base"></i>
+                        </div>
+                    </div>
 
-                    <div class="relative group w-full md:w-auto md:pl-2 pt-2 md:pt-0">
-                        <div class="absolute -top-5 md:-top-3 left-1/2 -translate-x-1/2 bg-[#0f172a] px-2 text-xs md:text-[10px] text-cyan-400 font-bold uppercase tracking-widest z-20 w-max">
-                            Billing Cycle
-                        </div>
-                        <div class="relative">
-                            <select id="global-duration" onchange="updateAllPrices()" class="bg-transparent text-white text-2xl md:text-xl font-black outline-none cursor-pointer py-3 px-8 w-full md:min-w-[150px] z-10 relative text-center appearance-none">
-                                <option value="1 Month">1 Month</option>
-                                <option value="3 Months">3 Months</option>
-                                <option value="6 Months">6 Months</option>
-                                <option value="1 Year">1 Year</option>
-                            </select>
-                            <i class="fas fa-calendar-alt absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none text-xl md:hidden"></i>
-                            <i class="fas fa-chevron-down absolute right-4 md:right-2 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    <div class="relative group w-full md:w-auto md:pl-2 pt-2 md:pt-0">
+                        <div class="absolute -top-5 md:-top-3 left-1/2 -translate-x-1/2 bg-[#0f172a] px-2 text-xs md:text-[10px] text-cyan-400 font-bold uppercase tracking-widest z-20 w-max">
+                            Billing Cycle
+                        </div>
+                        <div class="relative">
+                            <select id="global-duration" onchange="updateAllPrices()" class="bg-transparent text-white text-2xl md:text-xl font-black outline-none cursor-pointer py-3 px-8 w-full md:min-w-[150px] z-10 relative text-center appearance-none">
+                                <option value="1 Month">1 Month</option>
+                                <option value="3 Months">3 Months</option>
+                                <option value="6 Months">6 Months</option>
+                                <option value="1 Year">1 Year</option>
+                            </select>
+                            <i class="fas fa-chevron-down absolute right-4 md:right-2 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-            <div id="plans-container" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 px-2"></div>
-        </div>
-    </section>
+            <div id="plans-container" class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 px-2"></div>
+        </div>
+    </section>
 
-    <div id="lead-modal" class="fixed inset-0 z-[1000] hidden">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeLeadForm()"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-4">
-            <div class="glass-panel border-cyan-500/50 rounded-2xl p-6 relative shadow-[0_0_50px_rgba(6,182,212,0.2)]">
-                <button onclick="closeLeadForm()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
-                
-                <h3 class="text-2xl font-bold mb-1">Get Connected 🚀</h3>
-                <p class="text-xs text-gray-400 mb-6">Complete details to send request via WhatsApp.</p>
+    <div id="lead-modal" class="fixed inset-0 z-[1000] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeLeadForm()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md p-4">
+            <div class="glass-panel border-cyan-500/50 rounded-2xl p-6 relative shadow-[0_0_50px_rgba(6,182,212,0.2)]">
+                <button onclick="closeLeadForm()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+                <h3 class="text-2xl font-bold mb-1">Get Connected 🚀</h3>
+                <p class="text-xs text-gray-400 mb-6">Complete details to send request via WhatsApp.</p>
+                <div class="bg-cyan-900/20 border border-cyan-500/30 rounded-xl p-3 mb-6 flex justify-between items-center">
+                    <div>
+                        <div id="modal-plan-name" class="text-cyan-400 font-bold text-sm">PLAN NAME</div>
+                        <div id="modal-plan-duration" class="text-xs text-gray-400">1 Month</div>
+                    </div>
+                    <div id="modal-plan-price" class="text-xl font-black text-white">₹0</div>
+                </div>
+                <form onsubmit="submitLeadForm(event)" class="space-y-4">
+                    <div>
+                        <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Full Name</label>
+                        <input type="text" id="lead-name" required class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-400 focus:outline-none transition">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Mobile Number</label>
+                        <input type="tel" id="lead-phone" required pattern="[0-9]{10}" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-400 focus:outline-none transition" placeholder="10-digit mobile number">
+                    </div>
+                    <div>
+                        <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Building / Society Name</label>
+                        <input type="text" id="lead-address" required class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-400 focus:outline-none transition">
+                    </div>
+                    <div class="flex items-start gap-3 mt-2">
+                        <input type="checkbox" id="lead-agree" required class="mt-1 accent-cyan-400 w-4 h-4">
+                        <label for="lead-agree" class="text-xs text-gray-400 leading-tight cursor-pointer">
+                            I agree to the <a href="#" class="text-cyan-400 hover:underline">Terms & Conditions</a> and authorize SGK to contact me via WhatsApp.
+                        </label>
+                    </div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-green-500/20 transition transform hover:-translate-y-1 flex items-center justify-center gap-2 mt-4">
+                        <i class="fab fa-whatsapp text-xl"></i> SUBMIT & CHAT
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-                <div class="bg-cyan-900/20 border border-cyan-500/30 rounded-xl p-3 mb-6 flex justify-between items-center">
-                    <div>
-                        <div id="modal-plan-name" class="text-cyan-400 font-bold text-sm">PLAN NAME</div>
-                        <div id="modal-plan-duration" class="text-xs text-gray-400">1 Month</div>
-                    </div>
-                    <div id="modal-plan-price" class="text-xl font-black text-white">₹0</div>
-                </div>
+    <section id="coverage" class="py-24 relative z-20 px-4 bg-gradient-to-b from-transparent to-black/40">
+        <div class="max-w-7xl mx-auto glass-panel rounded-[2rem] p-1 md:p-2 overflow-hidden shadow-2xl">
+            <div class="flex flex-col md:flex-row gap-0 md:gap-8 bg-[#0b1221] rounded-[1.8rem] overflow-hidden">
+                <div class="md:w-1/3 p-8 flex flex-col justify-center relative z-10 bg-[#0f172a]">
+                    <h2 class="text-3xl font-bold mb-2">Check Availability</h2>
+                    <p class="text-gray-400 text-sm mb-8">Search for your building or society to verify fiber presence.</p>
+                    <div class="relative w-full mb-6 group z-50"> 
+                        <div class="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-60 transition duration-500"></div>
+                        <input type="text" id="locationInput" autocomplete="off" placeholder="Search your Society..." class="relative w-full bg-[#020617] text-white border border-gray-700 rounded-t-xl rounded-b-xl py-4 px-5 pl-12 focus:border-cyan-400 outline-none font-bold transition-all placeholder-gray-600 z-10">
+                        <i id="searchIcon" class="fas fa-search absolute left-4 top-5 text-gray-500 z-20"></i>
+                        <div id="searchResults" class="search-dropdown"></div>
+                    </div>
+                    <div id="statusBox" class="hidden animate-fade-in space-y-4"></div>
+                </div>
+                <div class="md:w-2/3 h-[400px] md:h-[550px] relative group">
+                    <div id="map"></div>
+                    <button id="locateBtn" class="absolute bottom-5 right-5 z-[500] bg-white text-black w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-cyan-400 transition-all hover:scale-110 active:scale-95 border-2 border-transparent hover:border-white">
+                        <i class="fas fa-location-crosshairs text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
 
-                <form onsubmit="submitLeadForm(event)" class="space-y-4">
-                    <div>
-                        <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Full Name</label>
-                        <input type="text" id="lead-name" required class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-400 focus:outline-none transition">
-                    </div>
-                    <div>
-                        <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Mobile Number</label>
-                        <input type="tel" id="lead-phone" required pattern="[0-9]{10}" class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-400 focus:outline-none transition" placeholder="10-digit mobile number">
-                    </div>
-                    <div>
-                        <label class="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Building / Society Name</label>
-                        <input type="text" id="lead-address" required class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:border-cyan-400 focus:outline-none transition">
-                    </div>
+    <section id="payment" class="py-24">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="glass-panel rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-12 border border-white/10 relative overflow-hidden">
+                <div class="flex-1 text-left relative z-10">
+                    <h2 class="text-3xl font-bold mb-4">Instant Activation</h2>
+                    <p class="text-gray-400 mb-8 font-[Mukta]">Pay securely via UPI. Your account activates automatically.</p>
+                    <div class="space-y-6">
+                        <div>
+                            <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-1">OFFICIAL UPI ID</p>
+                            <div class="flex items-center gap-3">
+                                <span id="upi-display" class="text-2xl font-mono text-white bg-black/30 px-3 py-1 rounded">...</span>
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('upi-display').innerText)" class="text-gray-500 hover:text-white transition"><i class="fas fa-copy"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)] tilt-card mt-8 md:mt-0">
+                    <img id="qr-code-img" src="" alt="Scan to Pay" class="w-48 h-48 mix-blend-multiply">
+                </div>
+            </div>
+        </div>
+    </section>
 
-                    <div class="flex items-start gap-3 mt-2">
-                        <input type="checkbox" id="lead-agree" required class="mt-1 accent-cyan-400 w-4 h-4">
-                        <label for="lead-agree" class="text-xs text-gray-400 leading-tight cursor-pointer">
-                            I agree to the <a href="#" class="text-cyan-400 hover:underline">Terms & Conditions</a> and authorize SGK to contact me via WhatsApp.
-                        </label>
-                    </div>
+    <footer class="border-t border-white/10 bg-black/60 pt-16 pb-8 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+        <div class="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-12 mb-12">
+            <div class="space-y-4">
+                <div class="flex items-center gap-2 text-2xl font-black tracking-tighter">
+                    <div class="w-8 h-8 rounded bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_15px_cyan]">
+                        <i class="fas fa-bolt text-white text-sm"></i>
+                    </div>
+                    <span class="text-white">SGK Enterprises</span>
+                </div>
+                <p id="footer-about" class="text-gray-400 text-sm leading-relaxed max-w-sm">
+                    Connecting homes with next-gen fiber optics. Experience low latency, high speed, and reliability.
+                </p>
+            </div>
+            <div class="space-y-4">
+                <h3 class="text-white font-bold text-lg">Contact Us</h3>
+                <ul class="space-y-3 text-sm text-gray-400">
+                    <li class="flex items-start gap-3"><i class="fas fa-map-marker-alt text-cyan-400 mt-1"></i><span id="footer-address">123 Street, City</span></li>
+                    <li class="flex items-center gap-3"><i class="fas fa-envelope text-cyan-400"></i><a id="footer-email" href="#" class="hover:text-white transition">support@sgk.com</a></li>
+                    <li class="flex items-center gap-3"><i class="fas fa-phone text-cyan-400"></i><a id="footer-phone" href="#" class="hover:text-white transition">+91 98765 43210</a></li>
+                </ul>
+            </div>
+            <div>
+                <h3 class="text-white font-bold text-lg mb-4">Follow Us</h3>
+                <div class="flex gap-4">
+                    <a id="social-fb" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-[#1877F2] flex items-center justify-center transition-all duration-300 group"><i class="fab fa-facebook-f text-gray-400 group-hover:text-white"></i></a>
+                    <a id="social-insta" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center transition-all duration-300 group"><i class="fab fa-instagram text-gray-400 group-hover:text-white"></i></a>
+                    <a id="social-tw" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-black hover:border hover:border-white/20 flex items-center justify-center transition-all duration-300 group"><i class="fab fa-x-twitter text-gray-400 group-hover:text-white"></i></a>
+                    <a id="social-wa" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-[#25D366] flex items-center justify-center transition-all duration-300 group"><i class="fab fa-whatsapp text-gray-400 group-hover:text-white"></i></a>
+                </div>
+            </div>
+        </div>
+        <div class="border-t border-white/5 pt-8 text-center">
+            <p class="text-gray-600 text-xs">
+                © <span id="footer-year">2026</span> <span id="footer-copy-name">SGK Enterprises</span>. All Rights Reserved. 
+                <span class="mx-2">|</span> 
+                <a href="#" class="hover:text-gray-400">Terms</a> & <a href="#" class="hover:text-gray-400">Privacy</a>
+                <span class="mx-2">|</span>
+                <a href="admin-panel.html" class="text-gray-800 hover:text-cyan-400 transition" title="Admin Login"><i class="fas fa-lock"></i></a>
+            </p>
+        </div>
+    </footer>
 
-                    <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-green-500/20 transition transform hover:-translate-y-1 flex items-center justify-center gap-2 mt-4">
-                        <i class="fab fa-whatsapp text-xl"></i> SUBMIT & CHAT
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
+    <script src="map-core.js"></script>
+    <script src="main.js"></script>
 
-    <section id="coverage" class="py-24 relative z-20 px-4 bg-gradient-to-b from-transparent to-black/40">
-        <div class="max-w-7xl mx-auto glass-panel rounded-[2rem] p-1 md:p-2 overflow-hidden shadow-2xl">
-            <div class="flex flex-col md:flex-row gap-0 md:gap-8 bg-[#0b1221] rounded-[1.8rem] overflow-hidden">
-                <div class="md:w-1/3 p-8 flex flex-col justify-center relative z-10 bg-[#0f172a]">
-                    <h2 class="text-3xl font-bold mb-2">Check Availability</h2>
-                    <p class="text-gray-400 text-sm mb-8">Search for your building or society to verify fiber presence.</p>
-                    <div class="relative w-full mb-6 group z-50"> 
-                        <div class="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 to-purple-600 rounded-xl blur opacity-20 group-hover:opacity-60 transition duration-500"></div>
-                        <input type="text" id="locationInput" autocomplete="off" placeholder="Search your Society..." class="relative w-full bg-[#020617] text-white border border-gray-700 rounded-t-xl rounded-b-xl py-4 px-5 pl-12 focus:border-cyan-400 outline-none font-bold transition-all placeholder-gray-600 z-10">
-                        <i id="searchIcon" class="fas fa-search absolute left-4 top-5 text-gray-500 z-20"></i>
-                        <div id="searchResults" class="search-dropdown"></div>
-                    </div>
-                    <div id="statusBox" class="hidden animate-fade-in space-y-4"></div>
-                </div>
-                <div class="md:w-2/3 h-[400px] md:h-[550px] relative group">
-                    <div id="map"></div>
-                    <button id="locateBtn" class="absolute bottom-5 right-5 z-[500] bg-white text-black w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-cyan-400 transition-all hover:scale-110 active:scale-95 border-2 border-transparent hover:border-white">
-                        <i class="fas fa-location-crosshairs text-xl"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </section>
+    <script>
+        // ==========================================
+        //  LINKING ISSUE FIX: FETCH FROM FIREBASE
+        // ==========================================
+        
+        // REPLACE WITH YOUR FIREBASE CONFIG (SAME AS ADMIN PANEL)
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAO_1qoKmeXzyhB5YKlg4R3oQ4IRXudvCE",
+  authDomain: "sgk-isp-website.firebaseapp.com",
+  projectId: "sgk-isp-website",
+  storageBucket: "sgk-isp-website.firebasestorage.app",
+  messagingSenderId: "653091870065",
+  appId: "1:653091870065:web:5fc8739eb6d9af029352d0",
+  measurementId: "G-8L5198RZQJ"
+};
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-    <section id="payment" class="py-24">
-        <div class="max-w-5xl mx-auto px-4">
-            <div class="glass-panel rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-12 border border-white/10 relative overflow-hidden">
-                <div class="flex-1 text-left relative z-10">
-                    <h2 class="text-3xl font-bold mb-4">Instant Activation</h2>
-                    <p class="text-gray-400 mb-8 font-[Mukta]">Pay securely via UPI. Your account activates automatically.</p>
-                    <div class="space-y-6">
-                        <div>
-                            <p class="text-[10px] text-cyan-400 font-bold uppercase tracking-widest mb-1">OFFICIAL UPI ID</p>
-                            <div class="flex items-center gap-3">
-                                <span id="upi-display" class="text-2xl font-mono text-white bg-black/30 px-3 py-1 rounded">...</span>
-                                <button onclick="navigator.clipboard.writeText(document.getElementById('upi-display').innerText)" class="text-gray-500 hover:text-white transition"><i class="fas fa-copy"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-2xl shadow-[0_0_50px_rgba(255,255,255,0.1)] tilt-card mt-8 md:mt-0">
-                    <img id="qr-code-img" src="" alt="Scan to Pay" class="w-48 h-48 mix-blend-multiply">
-                </div>
-            </div>
-        </div>
-    </section>
+        // FETCH DATA AND START MAIN.JS
+        db.collection('settings').doc('siteData').get()
+        .then((doc) => {
+            if (doc.exists) {
+                console.log("🔥 Cloud Data Retrieved!");
+                let cloudData = doc.data();
 
-    <footer class="border-t border-white/10 bg-black/60 pt-16 pb-8 relative overflow-hidden">
-        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
-        
-        <div class="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-12 mb-12">
-            <div class="space-y-4">
-                <div class="flex items-center gap-2 text-2xl font-black tracking-tighter">
-                    <div class="w-8 h-8 rounded bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-[0_0_15px_cyan]">
-                        <i class="fas fa-bolt text-white text-sm"></i>
-                    </div>
-                    <span class="text-white">SGK Enterprises</span>
-                </div>
-                <p id="footer-about" class="text-gray-400 text-sm leading-relaxed max-w-sm">
-                    Connecting homes with next-gen fiber optics. Experience low latency, high speed, and reliability.
-                </p>
-            </div>
+                // --- CRITICAL FIX FOR MAP ARRAYS ---
+                if (cloudData.zones) {
+                    cloudData.zones = cloudData.zones.map(zone => {
+                        if (Array.isArray(zone.points)) {
+                            zone.points = zone.points.map(p => {
+                                if (p && typeof p === 'object' && !Array.isArray(p)) {
+                                    return [p.lat, p.lng];
+                                }
+                                return p;
+                            });
+                        }
+                        return zone;
+                    });
+                }
+                // --- END FIX ---
 
-            <div class="space-y-4">
-                <h3 class="text-white font-bold text-lg">Contact Us</h3>
-                <ul class="space-y-3 text-sm text-gray-400">
-                    <li class="flex items-start gap-3">
-                        <i class="fas fa-map-marker-alt text-cyan-400 mt-1"></i>
-                        <span id="footer-address">123 Street, City</span>
-                    </li>
-                    <li class="flex items-center gap-3">
-                        <i class="fas fa-envelope text-cyan-400"></i>
-                        <a id="footer-email" href="#" class="hover:text-white transition">support@sgk.com</a>
-                    </li>
-                    <li class="flex items-center gap-3">
-                        <i class="fas fa-phone text-cyan-400"></i>
-                        <a id="footer-phone" href="#" class="hover:text-white transition">+91 98765 43210</a>
-                    </li>
-                </ul>
-            </div>
-
-            <div>
-                <h3 class="text-white font-bold text-lg mb-4">Follow Us</h3>
-                <div class="flex gap-4">
-                    <a id="social-fb" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-[#1877F2] flex items-center justify-center transition-all duration-300 group">
-                        <i class="fab fa-facebook-f text-gray-400 group-hover:text-white"></i>
-                    </a>
-                    <a id="social-insta" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center transition-all duration-300 group">
-                        <i class="fab fa-instagram text-gray-400 group-hover:text-white"></i>
-                    </a>
-                    <a id="social-tw" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-black hover:border hover:border-white/20 flex items-center justify-center transition-all duration-300 group">
-                        <i class="fab fa-x-twitter text-gray-400 group-hover:text-white"></i>
-                    </a>
-                    <a id="social-wa" href="#" target="_blank" class="w-10 h-10 rounded-full bg-white/5 hover:bg-[#25D366] flex items-center justify-center transition-all duration-300 group">
-                        <i class="fab fa-whatsapp text-gray-400 group-hover:text-white"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="border-t border-white/5 pt-8 text-center">
-            <p class="text-gray-600 text-xs">
-                © <span id="footer-year">2026</span> <span id="footer-copy-name">SGK Enterprises</span>. All Rights Reserved. 
-                <span class="mx-2">|</span> 
-                <a href="#" class="hover:text-gray-400">Terms</a> & <a href="#" class="hover:text-gray-400">Privacy</a>
-            </p>
-          <span class="mx-2">|</span>
-    <a href="admin-panel.html" class="text-gray-800 hover:text-cyan-400 transition" title="Admin Login">
-        <i class="fas fa-lock"></i>
-    </a>
-            <p class="text-gray-700 text-[10px] mt-2">ISP License: MH/ISP/2024/001</p>
-        </div>
-    </footer>
-
-    <script src="map-core.js"></script>
-    <script src="main.js"></script>
+                // Start the app with this data
+                if(typeof window.startApp === 'function') {
+                    window.startApp(cloudData);
+                } else {
+                    console.error("Main.js not loaded correctly!");
+                }
+            } else {
+                console.error("No data found in Cloud!");
+                document.getElementById('error-msg').innerText = "No Data Found";
+                document.getElementById('error-msg').classList.remove('hidden');
+            }
+        })
+        .catch((error) => {
+            console.error("Error getting document:", error);
+            document.getElementById('error-msg').innerText = "Connection Failed: " + error.message;
+            document.getElementById('error-msg').classList.remove('hidden');
+        });
+    </script>
 </body>
 </html>

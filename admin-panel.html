@@ -17,20 +17,14 @@
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; overflow-x: hidden; }
         .tab-btn.active { background: #22d3ee; color: black; font-weight: bold; border-bottom: 3px solid #0891b2; }
-        input, select, textarea { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 8px; width: 100%; color: white; font-size: 16px; /* Prevents iOS zoom on focus */}
+        input, select, textarea { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 8px; width: 100%; color: white; font-size: 16px; }
         .glass { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-        
-        /* Mobile Map Optimization */
         #admin-map { height: 400px; width: 100%; border-radius: 12px; z-index: 10; }
         @media (min-width: 768px) { #admin-map { height: 600px; } }
-        
-        /* Pulse for Editing Mode */
         .editing-pulse { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        /* Touch friendly markers */
         .leaflet-div-icon { background: transparent !important; border: none !important; }
         .touch-marker { background: #eab308; border: 2px solid white; border-radius: 50%; width: 24px !important; height: 24px !important; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
     </style>
@@ -38,7 +32,7 @@
 <body class="p-2 md:p-6">
 
     <div id="auth-modal" class="fixed inset-0 z-[3000] bg-black flex items-center justify-center p-4">
-        <div class="glass p-6 md:p-8 rounded-xl w-full max-w-sm text-center border border-gray-800 shadow-2xl">
+        <div class="glass p-6 md:p-8 rounded-xl w-full max-sm text-center border border-gray-800 shadow-2xl">
             <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-lock text-2xl text-cyan-400"></i>
             </div>
@@ -51,15 +45,20 @@
     </div>
 
     <div id="app-ui" class="max-w-7xl mx-auto hidden">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 text-center md:text-left">
             <h1 class="text-2xl md:text-3xl font-bold text-cyan-400 flex items-center gap-3">
                 <i class="fas fa-cloud"></i> SGK Admin
             </h1>
             
-            <div class="flex gap-2 w-full md:w-auto">
+            <div class="flex flex-wrap gap-2 w-full md:w-auto justify-center">
+                <a href="index.html" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg text-sm flex items-center justify-center gap-2 transition">
+                    <i class="fas fa-external-link-alt"></i> VIEW SITE
+                </a>
+
                 <button onclick="saveToCloud()" id="save-btn" class="flex-1 md:flex-none bg-green-500 text-black font-bold py-3 px-4 rounded-lg shadow-lg text-sm flex items-center justify-center gap-2">
                     <i class="fas fa-save"></i> SAVE
                 </button>
+                
                 <button onclick="firebase.auth().signOut()" class="bg-red-500/20 text-red-400 px-4 py-3 rounded-lg border border-red-500/30">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -106,7 +105,6 @@
                         </button>
                     </div>
                     <div id="admin-map"></div>
-                    
                     <div id="map-controls" class="absolute bottom-4 left-0 right-0 z-[1000] px-4 flex justify-center gap-2">
                         <button id="finish-poly-btn" onclick="finishPolygon()" class="hidden bg-green-500 text-black font-bold px-6 py-3 rounded-full shadow-2xl flex items-center gap-2">
                             <i class="fas fa-check"></i> SAVE ZONE
@@ -116,11 +114,9 @@
                         </button>
                     </div>
                 </div>
-
                 <div class="order-2 md:order-1 w-full md:w-1/3 glass p-4 rounded-xl flex flex-col h-[300px] md:h-[600px]">
                     <h3 class="font-bold mb-3 flex justify-between items-center">
-                        Zones 
-                        <span id="add-zone-prompt" class="text-[10px] text-cyan-400 hidden animate-pulse uppercase">Tap on map to draw</span>
+                        Zones <span id="add-zone-prompt" class="text-[10px] text-cyan-400 hidden animate-pulse uppercase">Tap on map to draw</span>
                     </h3>
                     <div id="map-zone-list" class="flex-1 overflow-y-auto space-y-2 mb-4 custom-scroll"></div>
                     <button id="add-zone-btn" onclick="startNewZone()" class="w-full bg-cyan-500 text-black font-bold py-3 rounded-lg shadow-lg">
@@ -160,7 +156,6 @@
     </div>
 
     <script>
-        // CONFIG REMAINS THE SAME
         const firebaseConfig = {
           apiKey: "AIzaSyAO_1qoKmeXzyhB5YKlg4R3oQ4IRXudvCE",
           authDomain: "sgk-isp-website.firebaseapp.com",
@@ -363,7 +358,6 @@
 
         function deletePlan(idx) { if(confirm("Delete?")) { data.plans.splice(idx,1); renderPlans(); } }
 
-        // MAP FUNCTIONS
         function initAdminMap() {
             if(map) map.remove();
             const startCoords = (data.zones.length > 0) ? data.zones[0].points[0] : [19.2183, 73.0878];
@@ -372,7 +366,7 @@
             drawLayer = L.layerGroup().addTo(map);
             renderMapZones();
             map.on('click', e => { if(isDrawing){ tempPoints.push([e.latlng.lat, e.latlng.lng]); renderEditor(); } });
-            toggleMapScroll(); // Start locked
+            toggleMapScroll(); 
         }
 
         function toggleMapScroll() {
@@ -433,10 +427,7 @@
             drawLayer.clearLayers();
             if(tempPoints.length>0) L.polygon(tempPoints, {color:'#eab308', weight:3, className: 'editing-pulse'}).addTo(drawLayer);
             tempPoints.forEach((p,i) => { 
-                L.marker(p, {
-                    draggable:true, 
-                    icon:L.divIcon({className:'touch-marker'})
-                })
+                L.marker(p, { draggable:true, icon:L.divIcon({className:'touch-marker'}) })
                 .addTo(drawLayer)
                 .on('drag', e=>{ tempPoints[i]=[e.latlng.lat, e.latlng.lng]; })
                 .on('contextmenu', ()=>{ tempPoints.splice(i,1); renderEditor(); }); 
@@ -459,7 +450,7 @@
                 cancelDrawing(); renderPlans(); renderStatusZones();
             } else {
                 const select = document.getElementById('new-zone-city');
-                select.innerHTML = (data.config.areaName||"").split(',').map(c => `<option value="${c.trim()}">${c.trim()}</option>`).join('');
+                select.innerHTML = (document.getElementById('conf-area').value||"").split(',').map(c => `<option value="${c.trim()}">${c.trim()}</option>`).join('');
                 document.getElementById('zone-modal').classList.remove('hidden');
             }
         }

@@ -16,7 +16,6 @@
 
   // ---------- UI helpers for auth loading ----------
   function ensureAuthLoaderDOM(){
-    // Create a subtle fullscreen overlay within auth modal if not present
     const modal = document.getElementById('auth-modal');
     if (!modal) return;
 
@@ -40,7 +39,6 @@
           </div>
         </div>
       `;
-      // make auth-modal position context if not already
       const cs = window.getComputedStyle(modal);
       if (cs.position === 'static') modal.style.position = 'relative';
       modal.appendChild(overlay);
@@ -116,7 +114,12 @@
 
   // Queue Flush
   window.__adminQueue = window.__adminQueue || [];
-  try { while (window.__adminQueue.length) { const fn = window.__adminQueue.shift(); try { fn && fn(); } catch(e){ console.error(e); } } } catch(e){ console.error(e); }
+  try {
+    while (window.__adminQueue.length) {
+      const fn = window.__adminQueue.shift();
+      try { fn && fn(); } catch(e){ console.error(e); }
+    }
+  } catch(e){ console.error(e); }
 
   // -------- Cloud I/O ----------
   function zonesFromFirestore(zones){
@@ -143,6 +146,8 @@
         const d = snap.data() || {};
         data.config = d.config || {};
         data.footer = d.footer || {};
+        if (!('hours' in data.footer)) data.footer.hours = '10 AM – 7 PM';
+
         data.zones  = zonesFromFirestore(d.zones || []);
         data.plans  = (d.plans || []).map(Util.ensurePlanSchema);
 
@@ -197,7 +202,8 @@
       about:     document.getElementById('foot-about').value,
       email:     document.getElementById('foot-email').value,
       facebook:  document.getElementById('foot-fb').value,
-      instagram: document.getElementById('foot-insta').value
+      instagram: document.getElementById('foot-insta').value,
+      hours:     (document.getElementById('foot-hours')?.value || '').trim()
     };
 
     const mode = document.querySelector('input[name="brand-mode"]:checked')?.value || 'text';
@@ -221,6 +227,9 @@
     document.getElementById('foot-address').value = data.config.address || '';
     document.getElementById('foot-fb').value      = data.footer.facebook || '';
     document.getElementById('foot-insta').value   = data.footer.instagram || '';
+    
+    const hoursEl = document.getElementById('foot-hours');
+    if (hoursEl) hoursEl.value = data.footer.hours || '10 AM – 7 PM';
 
     const waInput = document.getElementById('foot-wa');
     if (waInput){
@@ -238,16 +247,50 @@
   }
   Admin.ui.populateUI = populateUI;
 
+  // -------- Mobile tabs centering helper ----------
+  function centerMobileTab(tab){
+    const strip = document.getElementById('mobile-tabs-strip');
+    const btn = document.getElementById(`tab-${tab}-mobile`);
+    if (!strip || !btn) return;
+
+    // Compute scrollLeft that centers the button
+    const desired =
+      btn.offsetLeft + (btn.offsetWidth / 2) - (strip.clientWidth / 2);
+
+    // Clamp within [0, maxScrollLeft]
+    const maxScroll = strip.scrollWidth - strip.clientWidth;
+    const target = Math.max(0, Math.min(maxScroll, desired));
+
+    // Smooth scroll to center the item
+    strip.scrollTo({ left: target, behavior: 'smooth' });
+  }
+  window.centerMobileTab = centerMobileTab;
+
   // -------- Tabs ----------
+  function setAriaSelectedForTabs(tab){
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(el => {
+      el.setAttribute('aria-selected', String(el.dataset.tab === tab));
+    });
+  }
+
   function switchTab(tab){
+    // Hide all views, show selected
     document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
     const view = document.getElementById('view-'+tab);
     if (view) view.classList.remove('hidden');
 
+    // Clear active on all tab buttons (mobile + desktop)
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    const tabBtn = document.getElementById('tab-'+tab);
-    if (tabBtn) tabBtn.classList.add('active');
+    // Add active to all buttons that represent this tab
+    document.querySelectorAll(`.tab-btn[data-tab="${tab}"]`).forEach(el => el.classList.add('active'));
 
+    // Update aria-selected for accessibility
+    setAriaSelectedForTabs(tab);
+
+    // Center the active tab on the mobile strip if needed
+    centerMobileTab(tab);
+
+    // Lazy-init map when switching to it
     if (tab === 'map' && Admin.map && Admin.map.init && document.getElementById('admin-map')){
       setTimeout(() => Admin.map.init(), 150);
     }
@@ -257,15 +300,26 @@
   }
   window.switchTab = switchTab;
 
+  function getActiveTab(){
+    const el = document.querySelector('.tab-btn.active[data-tab]');
+    return el ? el.dataset.tab : 'status';
+  }
+  window.getActiveTab = getActiveTab;
+
   // -------- Auth ----------
   auth.onAuthStateChanged(user => {
-    // Hide any stray loader once Firebase resolves the state
     setAuthLoading(false);
 
     if (user){
       document.getElementById('auth-modal').classList.add('hidden');
       document.getElementById('app-ui').classList.remove('hidden');
       loadFromCloud();
+
+      // After UI is visible, ensure the currently active mobile tab is centered
+      setTimeout(() => {
+        centerMobileTab(getActiveTab());
+      }, 0);
+
     } else {
       document.getElementById('auth-modal').classList.remove('hidden');
       document.getElementById('app-ui').classList.add('hidden');
@@ -276,14 +330,12 @@
     const e = document.getElementById('admin-email').value;
     const p = document.getElementById('admin-pass').value;
 
-    // clear previous error
     const errEl = document.getElementById('login-error');
     if (errEl) { errEl.innerText = ''; errEl.style.display = 'none'; }
 
     setAuthLoading(true);
     try{
       await auth.signInWithEmailAndPassword(e, p);
-      // onAuthStateChanged will swap the views; loader will be hidden there too
     }catch(err){
       showLoginError(err?.message || 'Unable to sign in.');
       setAuthLoading(false);
@@ -303,4 +355,73 @@
     if (emailEl) emailEl.addEventListener('keydown', handler);
     if (passEl)  passEl.addEventListener('keydown', handler);
   })();
+
+  // ---- Password show/hide (eye icon) ----
+(function wirePasswordToggle(){
+  const pass = document.getElementById('admin-pass');
+  const btn  = document.getElementById('toggle-pass');
+  const icon = document.getElementById('toggle-pass-icon');
+  if (!pass || !btn || !icon) return;
+
+  // Switch type while preserving caret position
+  function setType(type){
+    if (!pass) return;
+    if (pass.type === type) return;
+
+    const selStart = pass.selectionStart;
+    const selEnd = pass.selectionEnd;
+    pass.setAttribute('type', type);
+    // restore caret/selection if possible
+    try {
+      if (selStart != null && selEnd != null) {
+        pass.setSelectionRange(selStart, selEnd);
+      }
+    } catch (e) {}
+  }
+
+  function updateVisual(isVisible){
+    icon.className = isVisible ? 'fas fa-eye-slash' : 'fas fa-eye';
+    btn.setAttribute('aria-pressed', String(!!isVisible));
+    btn.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+  }
+
+  // Click toggles persistent visibility
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const show = pass.type === 'password';
+    setType(show ? 'text' : 'password');
+    updateVisual(show);
+    pass.focus({ preventScroll:true });
+  });
+
+  // Press-and-hold to peek (mouse/touch)
+  let holding = false;
+  const startPeek = (ev) => {
+    ev.preventDefault();
+    holding = true;
+    setType('text');
+    updateVisual(true);
+  };
+  const endPeek = () => {
+    if (!holding) return;
+    holding = false;
+    setType('password');
+    updateVisual(false);
+  };
+
+  btn.addEventListener('mousedown', startPeek);
+  btn.addEventListener('touchstart', startPeek, { passive:false });
+  window.addEventListener('mouseup', endPeek);
+  window.addEventListener('mouseleave', endPeek);
+  window.addEventListener('touchend', endPeek);
+
+  // Escape hides if visible
+  pass.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && pass.type === 'text') {
+      setType('password');
+      updateVisual(false);
+      ev.stopPropagation();
+    }
+  });
+})();
 })();

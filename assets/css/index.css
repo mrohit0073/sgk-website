@@ -169,3 +169,15 @@ select option{
 /* Zones */
 @keyframes flash-red { 0%,100%{fill-opacity:0.2;} 50%{fill-opacity:0.6;} }
 .zone-down{ animation: flash-red 2s infinite; }
+
+/* Transaction modal small polish */
+#txn-modal.show { display: block; }
+body.modal-open { overflow: hidden; }
+
+#txn-modal .glass-panel {
+  animation: txn-pop .2s ease-out;
+}
+@keyframes txn-pop {
+  from { transform: scale(.98); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}

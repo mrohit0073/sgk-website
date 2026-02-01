@@ -179,6 +179,18 @@
     Admin.cloud.saveToCloud();
   }
 
+  (function wireFaviconSizeNote(){
+  const sizeSel = document.getElementById('ico-size');
+  const note = document.getElementById('favicon-preview-size');
+  if (!sizeSel || !note) return;
+
+  const update = () => {
+    const v = sizeSel.value || '256';
+    note.textContent = v ? `${v} × ${v}` : '';
+  };
+  sizeSel.addEventListener('change', update);
+  update();
+})();
+
   Admin.branding = { init, save };
-  window.saveBranding = save; 
 })();

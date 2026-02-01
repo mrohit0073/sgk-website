@@ -38,6 +38,10 @@
           instagram: (T.defaultSocials||{}).instagram||'',
           twitter: (T.defaultSocials||{}).twitter||''
         };
+        // Ensure support hours exist (matches Admin default)
+        if (!('hours' in cloudData.footer)) {
+          cloudData.footer.hours = '10 AM – 7 PM';
+        }
 
         // Normalize zones objects -> arrays
         if (cloudData.zones){
@@ -169,6 +173,14 @@
     Utils.setTxt('footer-email', footer.email || 'support@example.com');
     Utils.setTxt('footer-phone', config.phone || '');
     if (footer.email) Utils.setHref('footer-email', `mailto:${footer.email}`);
+
+    // Support Hours (shows "Support: 10 AM – 7 PM" if available)
+    if (footer.hours && footer.hours.trim() !== '') {
+      Utils.setTxt('footer-hours', `Support: ${footer.hours}`);
+    } else {
+      Utils.setTxt('footer-hours', '');
+    }
+
     const setupSocial = (id, url) => { const el = document.getElementById(id); if (!el) return; if (url && url.trim()!==''){ el.href = url; el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); el.removeAttribute('href'); } };
     setupSocial('social-fb', footer.facebook);
     setupSocial('social-insta', footer.instagram);
